@@ -91,9 +91,12 @@ local function setup(kwargs)
       -- Keep only safe labels.
       leap.opts.labels = {}
       -- Remove labels conflicting with the next/prev keys.
-      local filtered = {}
+      -- The first label will be the repeat key itself.
+      -- Note: this doesn't work well for non-alphabetic characters.
+      local filtered = { is_t and key.t or key.f }
+      local to_ignore = is_t and { key.t, key.T } or { key.f, key.F }
       for _, label in ipairs(leap.opts.safe_labels) do
-        if not vim.tbl_contains({key.f, key.F, key.t, key.T}, label) then
+        if not vim.tbl_contains(to_ignore, label) then
           table.insert(filtered, label)
         end
       end
