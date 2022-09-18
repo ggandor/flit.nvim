@@ -2,122 +2,187 @@ local api = vim.api
 
 local state = { prev_input = nil }
 
-local opts = {
-  multiline = true,
-  eager_ops = true,
-}
-
 
 local function flit(kwargs)
-  local ch = require('leap.util')['get-input-by-keymap']({ str = ">" })
-  if not ch then
-    return
-  end
-  -- Repeat with the previous input?
-  local repeat_key = require('leap.opts').special_keys.repeat_search
-  if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
-    if state.prev_input then
-      ch = state.prev_input
-    else
-      require('leap.util').echo('no previous search')
+  -- Reinvent The Wheel #1
+  -- Custom targets callback, ~90% of it replicating what Leap does by default.
+
+  local function get_input()
+    vim.cmd('echo ""')
+    local hl = require('leap.highlight')
+    if vim.v.count == 0 and not (kwargs.unlabeled and vim.fn.mode(1):match('o')) then
+      hl['apply-backdrop'](hl, kwargs.cc.backward)
+    end
+    hl['highlight-cursor'](hl)
+    vim.cmd('redraw')
+    local ch = require('leap.util')['get-input-by-keymap']({str = ">"})
+    hl['cleanup'](hl, { vim.fn.getwininfo(vim.fn.win_getid())[1] })
+    if not ch then
       return
     end
+    -- Repeat with the previous input?
+    local repeat_key = require('leap.opts').special_keys.repeat_search
+    if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
+      if state.prev_input then
+        ch = state.prev_input
+      else
+        require('leap.util').echo('no previous search')
+        return
+      end
+    else
+      state.prev_input = ch
+    end
+    return ch
+  end
+
+  local function get_pattern(input)
+    -- See `expand-to-equivalence-class` in `leap`.
+    -- Gotcha! 'leap'.opts redirects to 'leap.opts'.default - we want .current_call!
+    local chars = require('leap.opts').eq_class_of[input]
+    if chars then
+      chars = vim.tbl_map(function (ch)
+        if ch == '\n' then
+          return '\\n'
+        elseif ch == '\\' then
+          return '\\\\'
+        else return ch end
+      end, chars or {})
+      input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- "\(a\|b\|c\)"
+    end
+    return '\\V' .. (kwargs.multiline == false and '\\%.l' or '') .. input
+  end
+
+  local function get_targets(pattern)
+    local search = require('leap.search')
+    local bounds = search['get-horizontal-bounds']()
+    local get_char_at = require('leap.util')['get-char-at']
+    local targets = {}
+    for pos in search['get-match-positions'](
+        pattern, bounds, { ['backward?'] = kwargs.cc.backward }
+    ) do
+      table.insert(targets, { pos = pos, chars = { get_char_at(pos, {}) } })
+    end
+    return targets
+  end
+
+  -- The actual arguments for `leap` (would-be `opts.current_call`).
+  local cc = kwargs.cc or {}
+
+  cc.targets = function()
+    local state = require('leap').state
+    local pattern
+    if state.args.dot_repeat then
+      pattern = state.dot_repeat_pattern
+    else
+      local input = get_input()
+      if not input then
+        return
+      end
+      pattern = get_pattern(input)
+      -- Do not save into `state.dot_repeat`, because that will be
+      -- replaced by `leap` completely when setting dot-repeat.
+      state.dot_repeat_pattern = pattern
+    end
+    return get_targets(pattern)
+  end
+
+  cc.opts = kwargs.opts or {}
+  local key = kwargs.keymaps
+  -- In any case, keep only safe labels.
+  cc.opts.labels = {}
+  if kwargs.unlabeled then
+    cc.opts.safe_labels = {}
   else
-    state.prev_input = ch
+    -- Remove labels conflicting with the next/prev keys.
+    -- The first label will be the repeat key itself.
+    -- Note: this doesn't work well for non-alphabetic characters.
+    local filtered = { cc.t and key.t or key.f }
+    local to_ignore = cc.t and { key.t, key.T } or { key.f, key.F }
+    for _, label in ipairs(require('leap').opts.safe_labels) do
+      if not vim.tbl_contains(to_ignore, label) then
+        table.insert(filtered, label)
+      end
+    end
+    cc.opts.safe_labels = filtered
   end
-  -- Get targets.
-  local pattern = opts.multiline and ch or ('\\%.l' .. ch)
-  local pattern = '\\V' .. pattern
-  kwargs.targets = require('leap.search')['get-targets'](pattern, {
-    ['backward?'] = kwargs.backward,
-  })
-  if not kwargs.targets then
-    return
+  -- Set the next/prev ("clever-f") keys.
+  cc.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
+  if type(cc.opts.special_keys.next_match) == 'string' then
+    cc.opts.special_keys.next_match = { cc.opts.special_keys.next_match }
   end
-  -- Additional arguments.
-  -- UGLY HACK (using an undocumented leap parameter)! I don't know how to feed
-  -- a count value cleanly from the outside.
-  if opts.eager_ops and
-     string.match(vim.fn.mode(1), 'o') and
-     vim.v.count == 0
-  then
-    kwargs.count = 1
+  if type(cc.opts.special_keys.prev_match) == 'string' then
+    cc.opts.special_keys.prev_match = { cc.opts.special_keys.prev_match }
   end
-  kwargs.inclusive_op = true
-  kwargs.ft = true
-  -- Call Leap and sit back while it's doing the heavy lifting.
-  require('leap').leap(kwargs)
+  table.insert(cc.opts.special_keys.next_match, cc.t and key.t or key.f)
+  table.insert(cc.opts.special_keys.prev_match, cc.t and key.T or key.F)
+
+  require('leap').leap(cc)
 end
 
 
 local function setup(kwargs)
   local kwargs = kwargs or {}
-  for _, k in ipairs({'eager_ops', 'multiline'}) do
-    if not (kwargs[k] == nil) then opts[k] = kwargs[k] end
+  kwargs.cc = {}  --> would-be `opts.current_call`
+  kwargs.cc.ft = true
+  kwargs.cc.inclusive_op = true
+
+  -- Set keymaps.
+  kwargs.keymaps = kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  local key = kwargs.keymaps
+  local motion_specific_args = {
+    [key.f] = {},
+    [key.F] = { backward = true },
+    [key.t] = { offset = -1, t = true },
+    [key.T] = { backward = true, offset = 1, t = true }
+  }
+  local labeled_modes = kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or ""
+  for _, key in pairs(kwargs.keymaps) do
+    for _, mode in ipairs({'n', 'x', 'o'}) do
+      -- Make sure to create a new table for each mode (and not pass the
+      -- outer one by reference here inside the loop).
+      local kwargs = vim.deepcopy(kwargs)
+      kwargs.cc = vim.tbl_extend('force', kwargs.cc, motion_specific_args[key])
+      kwargs.unlabeled = not labeled_modes:match(mode)
+      vim.keymap.set(mode, key, function () flit(kwargs) end)
+    end
   end
 
-  -- Provide (the obvious) defaults.
-  local key = kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
-  -- Set keymaps.
-  vim.keymap.set({'n', 'x', 'o'}, key.f, function()
-    flit {}
-  end, {})
-  vim.keymap.set({'n', 'x', 'o'}, key.F, function()
-    flit { backward = true }
-  end, {})
-  vim.keymap.set({'n', 'x', 'o'}, key.t, function()
-    flit { offset = -1, t = true }
-  end, {})
-  vim.keymap.set({'n', 'x', 'o'}, key.T, function()
-    flit { backward = true, offset = 1, t = true }
-  end, {})
-
-  api.nvim_create_augroup('LeapFt', {})
-
-  -- Set our custom settings on entering Leap.
-  api.nvim_create_autocmd('User', { pattern = 'LeapEnter', group = 'LeapFt',
-    callback = function ()
-      local leap = require('leap')
-      if not leap.state.args.ft then
-        return
+  -- Reinvent The Wheel #2
+  -- Ridiculous hack to prevent having to expose a `multiline` flag in
+  -- the core: switch Leap's backdrop function to our special one here :)
+  if kwargs.multiline == false then
+    local state = require('leap').state
+    local function backdrop_current_line()
+      local hl = require('leap.highlight')
+      if pcall(api.nvim_get_hl_by_name, hl.group.backdrop, false) then
+          local curline = vim.fn.line(".") - 1  -- API indexing
+          local curcol = vim.fn.col(".")
+          local startcol = state.args.backward and 0 or (curcol + 1)
+          local endcol = state.args.backward and (curcol - 1) or -1
+          vim.highlight.range(0, hl.ns, hl.group.backdrop,
+            { curline, startcol }, { curline, endcol },
+            { priority = hl.priority.backdrop }
+          )
       end
-      local is_t = leap.state.args.t
-      -- Save the original settings.
-      leap.state.saved_opts = {
-        labels = vim.deepcopy(leap.opts.labels),
-        safe_labels = vim.deepcopy(leap.opts.safe_labels),
-        special_keys = vim.deepcopy(leap.opts.special_keys),
-      }
-      -- Keep only safe labels.
-      leap.opts.labels = {}
-      -- Remove labels conflicting with the next/prev keys.
-      -- The first label will be the repeat key itself.
-      -- Note: this doesn't work well for non-alphabetic characters.
-      local filtered = { is_t and key.t or key.f }
-      local to_ignore = is_t and { key.t, key.T } or { key.f, key.F }
-      for _, label in ipairs(leap.opts.safe_labels) do
-        if not vim.tbl_contains(to_ignore, label) then
-          table.insert(filtered, label)
-        end
-      end
-      leap.opts.safe_labels = filtered
-      -- Set the next/prev ("clever-f") keys.
-      leap.opts.special_keys.next_match = is_t and key.t or key.f
-      leap.opts.special_keys.prev_match = is_t and key.T or key.F
     end
-  })
-
-  -- Restore the original settings on exit.
-  api.nvim_create_autocmd('User', { pattern = 'LeapLeave', group = 'LeapFt',
-    callback = function ()
-      local leap = require('leap')
-      if leap.state.args.ft then
-        for k, v in pairs(leap.state.saved_opts) do
-          leap.opts[k] = v
+    api.nvim_create_augroup('Flit', {})
+    api.nvim_create_autocmd('User', { pattern = 'LeapEnter', group = 'Flit',
+      callback = function ()
+        if state.args.ft then
+          state.saved_backdrop_fn = require('leap.highlight')['apply-backdrop']
+          require('leap.highlight')['apply-backdrop'] = backdrop_current_line
         end
       end
-    end,
-  })
+    })
+    api.nvim_create_autocmd('User', { pattern = 'LeapLeave', group = 'Flit',
+      callback = function ()
+        if state.args.ft then
+          require('leap.highlight')['apply-backdrop'] = state.saved_backdrop_fn
+          state.saved_backdrop_fn = nil
+        end
+      end
+    })
+  end
 end
 
 
