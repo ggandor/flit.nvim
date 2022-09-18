@@ -135,7 +135,7 @@ local function setup(kwargs)
     [key.t] = { offset = -1, t = true },
     [key.T] = { backward = true, offset = 1, t = true }
   }
-  local labeled_modes = kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or ""
+  local labeled_modes = kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or "x"
   for _, key in pairs(kwargs.keymaps) do
     for _, mode in ipairs({'n', 'x', 'o'}) do
       -- Make sure to create a new table for each mode (and not pass the
