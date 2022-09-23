@@ -24,7 +24,7 @@ are okay:
 
 ```lua
 require('flit').setup {
-  keymaps = { f = 'f', F = 'F', t = 't', T = 'T' },
+  keys = { f = 'f', F = 'F', t = 't', T = 'T' },
   -- A string like "nv", "nvo", "o", etc.
   labeled_modes = "v",
   multiline = true,

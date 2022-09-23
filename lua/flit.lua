@@ -87,7 +87,7 @@ local function flit(kwargs)
   end
 
   cc.opts = kwargs.opts or {}
-  local key = kwargs.keymaps
+  local key = kwargs.keys
   -- In any case, keep only safe labels.
   cc.opts.labels = {}
   if kwargs.unlabeled then
@@ -126,9 +126,9 @@ local function setup(kwargs)
   kwargs.cc.ft = true
   kwargs.cc.inclusive_op = true
 
-  -- Set keymaps.
-  kwargs.keymaps = kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
-  local key = kwargs.keymaps
+  -- Set keymappings.
+  kwargs.keys = kwargs.keys or kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  local key = kwargs.keys
   local motion_specific_args = {
     [key.f] = {},
     [key.F] = { backward = true },
@@ -136,7 +136,7 @@ local function setup(kwargs)
     [key.T] = { backward = true, offset = 1, t = true }
   }
   local labeled_modes = kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or "x"
-  for _, key in pairs(kwargs.keymaps) do
+  for _, key in pairs(kwargs.keys) do
     for _, mode in ipairs({'n', 'x', 'o'}) do
       -- Make sure to create a new table for each mode (and not pass the
       -- outer one by reference here inside the loop).
