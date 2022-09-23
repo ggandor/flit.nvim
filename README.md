@@ -13,6 +13,10 @@
 * multiline scope (opt-out)
 * follow `ignorecase`/`smartcase`
 
+## Status
+
+WIP
+
 ## Requirements
 
 * [leap.nvim](https://github.com/ggandor/leap.nvim)
@@ -33,6 +37,3 @@ require('flit').setup {
   opts = {}
 }
 ```
-
-Note that Flit is nothing more than a convenience module - everything it does
-you could (technically) do yourself via the Leap API.
