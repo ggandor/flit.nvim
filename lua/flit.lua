@@ -107,14 +107,14 @@ local function flit(kwargs)
   end
   -- Set the next/prev ("clever-f") keys.
   cc.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
-  if type(cc.opts.special_keys.next_match) == 'string' then
-    cc.opts.special_keys.next_match = { cc.opts.special_keys.next_match }
+  if type(cc.opts.special_keys.next_target) == 'string' then
+    cc.opts.special_keys.next_target = { cc.opts.special_keys.next_target }
   end
-  if type(cc.opts.special_keys.prev_match) == 'string' then
-    cc.opts.special_keys.prev_match = { cc.opts.special_keys.prev_match }
+  if type(cc.opts.special_keys.prev_target) == 'string' then
+    cc.opts.special_keys.prev_target = { cc.opts.special_keys.prev_target }
   end
-  table.insert(cc.opts.special_keys.next_match, cc.t and key.t or key.f)
-  table.insert(cc.opts.special_keys.prev_match, cc.t and key.T or key.F)
+  table.insert(cc.opts.special_keys.next_target, cc.t and key.t or key.f)
+  table.insert(cc.opts.special_keys.prev_target, cc.t and key.T or key.F)
 
   require('leap').leap(cc)
 end
