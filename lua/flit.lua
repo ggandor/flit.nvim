@@ -56,10 +56,11 @@ local function flit(kwargs)
     local search = require('leap.search')
     local bounds = search['get-horizontal-bounds']()
     local get_char_at = require('leap.util')['get-char-at']
-    local targets = {}
-    for pos in search['get-match-positions'](
+    local match_positions = search['get-match-positions'](
         pattern, bounds, { ['backward?'] = kwargs.cc.backward }
-    ) do
+    )
+    local targets = {}
+    for _, pos in ipairs(match_positions) do
       table.insert(targets, { pos = pos, chars = { get_char_at(pos, {}) } })
     end
     return targets
