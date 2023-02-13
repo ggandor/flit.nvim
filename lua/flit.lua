@@ -16,7 +16,7 @@ local function flit(kwargs)
     hl['highlight-cursor'](hl)
     vim.cmd('redraw')
     local ch = require('leap.util')['get-input-by-keymap']({str = ">"})
-    hl['cleanup'](hl, { vim.fn.getwininfo(vim.fn.win_getid())[1] })
+    hl['cleanup'](hl, { vim.fn.win_getid() })
     if not ch then
       return
     end
