@@ -129,6 +129,7 @@ local function setup(kwargs)
 
   -- Set keymappings.
   kwargs.keys = kwargs.keys or kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  kwargs.motion_specific_args = vim.tbl_extend('force', { n = {}, x = {}, o = {} }, kwargs.motion_specific_args or {})
   local key = kwargs.keys
   local motion_specific_args = {
     [key.f] = {},
@@ -143,6 +144,7 @@ local function setup(kwargs)
       -- outer one by reference here inside the loop).
       local kwargs = vim.deepcopy(kwargs)
       kwargs.cc = vim.tbl_extend('force', kwargs.cc, motion_specific_args[key])
+      kwargs.cc = vim.tbl_extend('force', kwargs.cc, kwargs.motion_specific_args[mode][key] or {})
       kwargs.unlabeled = not labeled_modes:match(mode)
       vim.keymap.set(mode, key, function () flit(kwargs) end)
     end
