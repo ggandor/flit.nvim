@@ -20,6 +20,7 @@ WIP
 ## Requirements
 
 * [leap.nvim](https://github.com/ggandor/leap.nvim)
+* [repeat.vim](https://github.com/tpope/vim-repeat) (transitive)
 
 ## Setup
 
