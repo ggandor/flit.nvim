@@ -26,7 +26,7 @@ local function flit(kwargs)
       if state.prev_input then
         ch = state.prev_input
       else
-        require('leap.util').echo('no previous search')
+        vim.cmd('echo "no previous search"')
         return
       end
     else
