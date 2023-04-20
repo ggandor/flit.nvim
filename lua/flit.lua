@@ -52,9 +52,23 @@ local function flit(kwargs)
     return '\\V' .. (kwargs.multiline == false and '\\%.l' or '') .. input
   end
 
+  local function get_horizontal_bounds()
+    local dec = require('leap.util')['dec']
+    local window_width = api.nvim_win_get_width(0)
+    local textoff = vim.fn.getwininfo(vim.fn.win_getid())[1].textoff
+    local offset_in_win = dec(vim.fn.wincol())
+    local offset_in_editable_win = (offset_in_win - textoff)
+    local left_bound = (vim.fn.virtcol(".") - offset_in_editable_win)
+    local right_bound = (left_bound + dec((window_width - textoff)))
+    if kwargs.multiline == false then
+      right_bound = api.nvim_strwidth(api.nvim_get_current_line())
+    end
+    return { left_bound, right_bound }
+  end
+
   local function get_targets(pattern)
     local search = require('leap.search')
-    local bounds = search['get-horizontal-bounds']()
+    local bounds = get_horizontal_bounds()
     local get_char_at = require('leap.util')['get-char-at']
     local match_positions = search['get-match-positions'](
         pattern, bounds, { ['backward?'] = kwargs.cc.backward }
