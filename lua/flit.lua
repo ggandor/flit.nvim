@@ -21,7 +21,7 @@ local function flit(kwargs)
       return
     end
     -- Repeat with the previous input?
-    local repeat_key = require('leap.opts').special_keys.repeat_search
+    local repeat_key = require('leap.opts').special_keys.next_target[1]
     if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
       if state.prev_input then
         ch = state.prev_input
@@ -116,6 +116,9 @@ local function flit(kwargs)
   end
   table.insert(cc.opts.special_keys.next_target, cc.t and key.t or key.f)
   table.insert(cc.opts.special_keys.prev_target, cc.t and key.T or key.F)
+  -- Add ; and , too.
+  table.insert(cc.opts.special_keys.next_target, ';')
+  table.insert(cc.opts.special_keys.prev_target, ',')
 
   require('leap').leap(cc)
 end
