@@ -139,14 +139,16 @@ local function setup(kwargs)
   }
   local labeled_modes = kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or "x"
   for _, key in pairs(kwargs.keys) do
-    for _, mode in ipairs({'n', 'x', 'o'}) do
-      -- Make sure to create a new table for each mode (and not pass the
-      -- outer one by reference here inside the loop).
-      local kwargs = vim.deepcopy(kwargs)
-      kwargs.cc = vim.tbl_extend('force', kwargs.cc, motion_specific_args[key])
-      kwargs.cc = vim.tbl_extend('force', kwargs.cc, kwargs.motion_specific_args[mode][key] or {})
-      kwargs.unlabeled = not labeled_modes:match(mode)
-      vim.keymap.set(mode, key, function () flit(kwargs) end)
+    if key then 
+      for _, mode in ipairs({'n', 'x', 'o'}) do
+        -- Make sure to create a new table for each mode (and not pass the
+        -- outer one by reference here inside the loop).
+        local kwargs = vim.deepcopy(kwargs)
+        kwargs.cc = vim.tbl_extend('force', kwargs.cc, motion_specific_args[key])
+        kwargs.cc = vim.tbl_extend('force', kwargs.cc, kwargs.motion_specific_args[mode][key] or {})
+        kwargs.unlabeled = not labeled_modes:match(mode)
+        vim.keymap.set(mode, key, function () flit(kwargs) end)
+      end
     end
   end
 
