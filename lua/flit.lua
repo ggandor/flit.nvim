@@ -55,13 +55,15 @@ local function flit(kwargs)
   local function get_targets(pattern)
     local search = require('leap.search')
     local bounds = search['get-horizontal-bounds']()
-    local get_char_at = require('leap.util')['get-char-at']
     local match_positions = search['get-match-positions'](
         pattern, bounds, { ['backward?'] = kwargs.cc.backward }
     )
     local targets = {}
     for _, pos in ipairs(match_positions) do
-      table.insert(targets, { pos = pos, chars = { get_char_at(pos, {}) } })
+      local line_str = vim.fn.getline(pos[1])
+      local start = vim.fn.charidx(line_str, pos[2] - 1)
+      local ch = vim.fn.strcharpart(line_str, start, 1, 1)
+      table.insert(targets, { pos = pos, chars = { ch } })
     end
     return targets
   end
