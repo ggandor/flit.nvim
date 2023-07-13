@@ -59,10 +59,16 @@ local function flit(kwargs)
         pattern, bounds, { ['backward?'] = kwargs.cc.backward }
     )
     local targets = {}
+    local skipcc = vim.fn.has('nvim-0.10')
     for _, pos in ipairs(match_positions) do
       local line_str = vim.fn.getline(pos[1])
       local start = vim.fn.charidx(line_str, pos[2] - 1)
-      local ch = vim.fn.strcharpart(line_str, start, 1, 1)
+      local ch
+      if skipcc then
+        ch = vim.fn.strcharpart(line_str, start, 1, 1)
+      else
+        ch = vim.fn.strcharpart(line_str, start, 1)
+      end
       table.insert(targets, { pos = pos, chars = { ch } })
     end
     return targets
