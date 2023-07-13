@@ -60,9 +60,15 @@ local function flit(kwargs)
     )
     local targets = {}
     local skipcc = vim.fn.has('nvim-0.10')
+    local line_str
+    local prev_line
     for _, pos in ipairs(match_positions) do
-      local line_str = vim.fn.getline(pos[1])
-      local start = vim.fn.charidx(line_str, pos[2] - 1)
+      local line, col = unpack(pos)
+      if line ~= prev_line then
+        line_str = vim.fn.getline(line)
+        prev_line = line
+      end
+      local start = vim.fn.charidx(line_str, col - 1)
       local ch
       if skipcc then
         ch = vim.fn.strcharpart(line_str, start, 1, 1)
