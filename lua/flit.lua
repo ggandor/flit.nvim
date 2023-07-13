@@ -59,7 +59,7 @@ local function flit(kwargs)
         pattern, bounds, { ['backward?'] = kwargs.cc.backward }
     )
     local targets = {}
-    local skipcc = vim.fn.has('nvim-0.10')
+    local skipcc = vim.fn.has('nvim-0.10') == 1
     local line_str
     local prev_line
     for _, pos in ipairs(match_positions) do
