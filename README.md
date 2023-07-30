@@ -36,5 +36,8 @@ require('flit').setup {
   -- Like `leap`s similar argument (call-specific overrides).
   -- E.g.: opts = { equivalence_classes = {} }
   opts = {}
+  -- If set to true (default), clever_repeat enables repeat with the trigger key itself.
+  -- If false, pressing the trigger key starts a new search.
+  clever_repeat = true
 }
 ```

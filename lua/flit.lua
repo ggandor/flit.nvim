@@ -128,8 +128,11 @@ local function flit(kwargs)
   if type(cc.opts.special_keys.prev_target) == 'string' then
     cc.opts.special_keys.prev_target = { cc.opts.special_keys.prev_target }
   end
-  table.insert(cc.opts.special_keys.next_target, cc.t and key.t or key.f)
-  table.insert(cc.opts.special_keys.prev_target, cc.t and key.T or key.F)
+  -- Enable clever-f repeat with trigger key
+  if kwargs.clever_repeat then
+    table.insert(cc.opts.special_keys.next_target, cc.t and key.t or key.f)
+    table.insert(cc.opts.special_keys.prev_target, cc.t and key.T or key.F)
+  end
   -- Add ; and , too.
   table.insert(cc.opts.special_keys.next_target, ';')
   table.insert(cc.opts.special_keys.prev_target, ',')
@@ -143,6 +146,13 @@ local function setup(kwargs)
   kwargs.cc = {}  --> would-be `opts.current_call`
   kwargs.cc.ft = true
   kwargs.cc.inclusive_op = true
+
+  -- If set to true (default), clever_repeat enables repeat with the trigger key itself
+  if kwargs.clever_repeat == nil then
+    kwargs.clever_repeat = true
+  else
+    kwargs.clever_repeat = kwargs.clever_repeat
+  end
 
   -- Set keymappings.
   kwargs.keys = kwargs.keys or kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
