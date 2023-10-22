@@ -94,9 +94,13 @@ local function flit(kwargs)
         return
       end
       pattern = get_pattern(input)
+      local mode = api.nvim_get_mode().mode
+      local dot_repeatable_op = mode:match("o") and vim.v.operator ~= "y"
       -- Do not save into `state.dot_repeat`, because that will be
       -- replaced by `leap` completely when setting dot-repeat.
-      state.dot_repeat_pattern = pattern
+      if dot_repeatable_op then
+        state.dot_repeat_pattern = pattern
+      end
     end
     return get_targets(pattern)
   end
