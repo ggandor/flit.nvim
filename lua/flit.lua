@@ -117,7 +117,7 @@ local function flit(kwargs)
     -- The first label will be the repeat key itself.
     -- (Note: this doesn't work well for non-alphabetic characters.)
     -- Note: the t/f flags in `lkwargs` have been set in `setup`.
-    local filtered_labels = { lkwargs.t and kwargs.keys.t or kwargs.keys.f }
+    local filtered_labels = {}
     local to_ignore = (lkwargs.t and { kwargs.keys.t, kwargs.keys.T } or
                                      { kwargs.keys.f, kwargs.keys.F })
     for _, label in ipairs(require('leap').opts.safe_labels) do
