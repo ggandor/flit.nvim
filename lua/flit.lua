@@ -105,7 +105,7 @@ local function flit(kwargs)
     return get_targets(pattern)
   end
 
-  lkwargs.opts = kwargs.opts or {}
+  lkwargs.opts = lkwargs.opts or {}
 
   -- In any case, keep only safe labels.
   lkwargs.opts.labels = {}
