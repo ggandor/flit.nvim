@@ -4,6 +4,7 @@ local state = { prev_input = nil }
 
 
 local function flit(kwargs)
+  local lkwargs = kwargs.lkwargs
 
   -- Reinvent The Wheel #1
   -- Custom targets callback, ~90% of it replicating what Leap does by default.
@@ -12,7 +13,7 @@ local function flit(kwargs)
     vim.cmd('echo ""')
     local hl = require('leap.highlight')
     if vim.v.count == 0 and not (kwargs.unlabeled and vim.fn.mode(1):match('o')) then
-      hl['apply-backdrop'](hl, kwargs.lkwargs.backward)
+      hl['apply-backdrop'](hl, lkwargs.backward)
     end
     hl['highlight-cursor'](hl)
     vim.cmd('redraw')
@@ -57,7 +58,7 @@ local function flit(kwargs)
     local search = require('leap.search')
     local bounds = search['get-horizontal-bounds']()
     local match_positions = search['get-match-positions'](
-        pattern, bounds, { ['backward?'] = kwargs.lkwargs.backward }
+        pattern, bounds, { ['backward?'] = lkwargs.backward }
     )
     local targets = {}
     local skipcc = vim.fn.has('nvim-0.10') == 1
@@ -81,8 +82,6 @@ local function flit(kwargs)
     return targets
   end
 
-  local lkwargs = kwargs.lkwargs or {}
-
   lkwargs.targets = function()
     local state = require('leap').state
     local pattern
@@ -104,8 +103,6 @@ local function flit(kwargs)
     end
     return get_targets(pattern)
   end
-
-  lkwargs.opts = lkwargs.opts or {}
 
   -- In any case, keep only safe labels.
   lkwargs.opts.labels = {}
@@ -154,7 +151,7 @@ local function setup(kwargs)
   -- lkwargs -> argument table for the `leap()` call inside `flit()`
   local fkwargs = {}
   fkwargs.lkwargs = {}
-  fkwargs.lkwargs.opts = kwargs.opts  --> would-be `opts.current_call`
+  fkwargs.lkwargs.opts = kwargs.opts or {} --> would-be `opts.current_call`
   fkwargs.multiline = kwargs.multiline
   fkwargs.lkwargs.ft = true  -- flag for the autocommands below (non-multiline hack)
   fkwargs.lkwargs.inclusive_op = true
