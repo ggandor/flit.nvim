@@ -155,6 +155,7 @@ local function setup(kwargs)
   local fkwargs = {}
   fkwargs.lkwargs = {}
   fkwargs.lkwargs.opts = kwargs.opts  --> would-be `opts.current_call`
+  fkwargs.multiline = kwargs.multiline
   fkwargs.lkwargs.ft = true  -- flag for the autocommands below (non-multiline hack)
   fkwargs.lkwargs.inclusive_op = true
 
