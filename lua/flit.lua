@@ -115,9 +115,11 @@ local function flit(f_args)
     -- (Note: this doesn't work well for non-alphabetic characters.)
     -- Note: the t/f flags in `l_args` have been set in `setup`.
     local filtered_labels = {}
+    local safe_labels = (l_args.opts.safe_labels or
+                         require('leap').opts.safe_labels)
     local to_ignore = (l_args.t and { f_args.keys.t, f_args.keys.T } or
                                     { f_args.keys.f, f_args.keys.F })
-    for _, label in ipairs(require('leap').opts.safe_labels) do
+    for _, label in ipairs(safe_labels) do
       if not vim.tbl_contains(to_ignore, label) then
         table.insert(filtered_labels, label)
       end
