@@ -195,7 +195,7 @@ local function setup(args)
           local curline = vim.fn.line(".") - 1  -- API indexing
           local curcol = vim.fn.col(".")
           local startcol = state.args.backward and 0 or (curcol + 1)
-          local endcol = state.args.backward and (curcol - 1) or -1
+          local endcol = state.args.backward and (curcol - 1) or (vim.fn.col("$") - 1)
           vim.highlight.range(0, hl.ns, hl.group.backdrop,
             { curline, startcol }, { curline, endcol },
             { priority = hl.priority.backdrop }
