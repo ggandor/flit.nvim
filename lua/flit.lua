@@ -17,7 +17,7 @@ local function flit(f_args)
     end
     hl['highlight-cursor'](hl)
     vim.cmd('redraw')
-    local ch = require('leap.util')['get-input-by-keymap']({str = ">"})
+    local ch = require('leap.util')['get-input-by-keymap']({str = '>'})
     hl['cleanup'](hl, { vim.fn.win_getid() })
     if not ch then
       return
@@ -49,7 +49,7 @@ local function flit(f_args)
           return '\\\\'
         else return ch end
       end, chars or {})
-      input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- "\(a\|b\|c\)"
+      input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- '\(a\|b\|c\)'
     end
     return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
   end
@@ -94,7 +94,7 @@ local function flit(f_args)
       end
       pattern = get_pattern(input)
       local mode = api.nvim_get_mode().mode
-      local dot_repeatable_op = mode:match("o") and vim.v.operator ~= "y"
+      local dot_repeatable_op = mode:match('o') and vim.v.operator ~= 'y'
       -- Do not save into `state.dot_repeat`, because that will be
       -- replaced by `leap` completely when setting dot-repeat.
       if dot_repeatable_op then
@@ -127,7 +127,7 @@ local function flit(f_args)
     l_args.opts.safe_labels = filtered_labels
   end
 
-  -- Set the next/prev ("clever-f") keys.
+  -- Set the next/prev ('clever-f') keys.
   l_args.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
   if type(l_args.opts.special_keys.next_target) == 'string' then
     l_args.opts.special_keys.next_target = { l_args.opts.special_keys.next_target }
@@ -192,10 +192,10 @@ local function setup(args)
     local function backdrop_current_line()
       local hl = require('leap.highlight')
       if pcall(api.nvim_get_hl_by_name, hl.group.backdrop, false) then
-          local curline = vim.fn.line(".") - 1  -- API indexing
-          local curcol = vim.fn.col(".")
+          local curline = vim.fn.line('.') - 1  -- API indexing
+          local curcol = vim.fn.col('.')
           local startcol = state.args.backward and 0 or (curcol + 1)
-          local endcol = state.args.backward and (curcol - 1) or (vim.fn.col("$") - 1)
+          local endcol = state.args.backward and (curcol - 1) or (vim.fn.col('$') - 1)
           vim.highlight.range(0, hl.ns, hl.group.backdrop,
             { curline, startcol }, { curline, endcol },
             { priority = hl.priority.backdrop }
