@@ -117,6 +117,9 @@ local function flit(f_args)
     local filtered_labels = {}
     local safe_labels = (l_args.opts.safe_labels or
                          require('leap').opts.safe_labels)
+    if type(safe_labels) == 'string' then
+      safe_labels = vim.fn.split(safe_labels, '\\zs')
+    end
     local to_ignore = (l_args.t and { f_args.keys.t, f_args.keys.T } or
                                     { f_args.keys.f, f_args.keys.F })
     for _, label in ipairs(safe_labels) do
