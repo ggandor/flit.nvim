@@ -1,7 +1,36 @@
 local api = vim.api
 
 local state = { prev_input = nil }
+local last_search_args
+local last_pattern
 
+local function get_targets(pattern, backward)
+  local search = require('leap.search')
+  local bounds = search['get-horizontal-bounds']()
+  local match_positions = search['get-match-positions'](
+    pattern, bounds, { ['backward?'] = backward }
+  )
+  local targets = {}
+  local skipcc = vim.fn.has('nvim-0.10') == 1
+  local line_str
+  local prev_line
+  for _, pos in ipairs(match_positions) do
+    local line, col = unpack(pos)
+    if line ~= prev_line then
+      line_str = vim.fn.getline(line)
+      prev_line = line
+    end
+    local start = vim.fn.charidx(line_str, col - 1)
+    local ch
+    if skipcc then
+      ch = vim.fn.strcharpart(line_str, start, 1, 1)
+    else
+      ch = vim.fn.strcharpart(line_str, start, 1)
+    end
+    table.insert(targets, { pos = pos, chars = { ch } })
+  end
+  return targets
+end
 
 local function flit(f_args)
   local l_args = f_args.l_args
@@ -54,33 +83,6 @@ local function flit(f_args)
     return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
   end
 
-  local function get_targets(pattern)
-    local search = require('leap.search')
-    local bounds = search['get-horizontal-bounds']()
-    local match_positions = search['get-match-positions'](
-        pattern, bounds, { ['backward?'] = l_args.backward }
-    )
-    local targets = {}
-    local skipcc = vim.fn.has('nvim-0.10') == 1
-    local line_str
-    local prev_line
-    for _, pos in ipairs(match_positions) do
-      local line, col = unpack(pos)
-      if line ~= prev_line then
-        line_str = vim.fn.getline(line)
-        prev_line = line
-      end
-      local start = vim.fn.charidx(line_str, col - 1)
-      local ch
-      if skipcc then
-        ch = vim.fn.strcharpart(line_str, start, 1, 1)
-      else
-        ch = vim.fn.strcharpart(line_str, start, 1)
-      end
-      table.insert(targets, { pos = pos, chars = { ch } })
-    end
-    return targets
-  end
 
   l_args.targets = function()
     local state = require('leap').state
@@ -101,7 +103,8 @@ local function flit(f_args)
         state.dot_repeat_pattern = pattern
       end
     end
-    return get_targets(pattern)
+    last_pattern = pattern
+    return get_targets(pattern, f_args.l_args.backward)
   end
 
   -- In any case, keep only safe labels.
@@ -146,9 +149,17 @@ local function flit(f_args)
   table.insert(l_args.opts.special_keys.next_target, ';')
   table.insert(l_args.opts.special_keys.prev_target, ',')
 
+  last_search_args = l_args
   require('leap').leap(l_args)
 end
 
+local function get_last_l_args()
+  local l_args = last_search_args
+  l_args.targets = function()
+    return get_targets(last_pattern, l_args.backward)
+  end
+  return l_args
+end
 
 local function setup(args)
   local setup_args = args or {}
@@ -186,6 +197,9 @@ local function setup(args)
       end)
     end
   end
+  vim.keymap.set('n', ';', function ()
+    require('leap').leap(get_last_l_args())
+  end)
 
   -- Reinvent The Wheel #2
   -- Ridiculous hack to prevent having to expose a `multiline` flag in
