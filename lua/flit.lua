@@ -153,10 +153,10 @@ local function flit(f_args)
   require('leap').leap(l_args)
 end
 
-local function get_last_l_args()
+local function get_last_l_args(inverse)
   local l_args = last_search_args
   l_args.targets = function()
-    return get_targets(last_pattern, l_args.backward)
+    return get_targets(last_pattern, inverse and not l_args.backward or l_args.backward)
   end
   return l_args
 end
@@ -198,7 +198,10 @@ local function setup(args)
     end
   end
   vim.keymap.set('n', ';', function ()
-    require('leap').leap(get_last_l_args())
+    require('leap').leap(get_last_l_args(false))
+  end)
+  vim.keymap.set('n', ',', function ()
+    require('leap').leap(get_last_l_args(true))
   end)
 
   -- Reinvent The Wheel #2
