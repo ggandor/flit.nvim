@@ -61,7 +61,6 @@ local function flit(f_args)
         pattern, bounds, { ['backward?'] = l_args.backward }
     )
     local targets = {}
-    local skipcc = vim.fn.has('nvim-0.10') == 1
     local line_str
     local prev_line
     for _, pos in ipairs(match_positions) do
@@ -70,13 +69,7 @@ local function flit(f_args)
         line_str = vim.fn.getline(line)
         prev_line = line
       end
-      local start = vim.fn.charidx(line_str, col - 1)
-      local ch
-      if skipcc then
-        ch = vim.fn.strcharpart(line_str, start, 1, 1)
-      else
-        ch = vim.fn.strcharpart(line_str, start, 1)
-      end
+      local ch = vim.fn.strpart(line_str, col - 1, 1, true)
       table.insert(targets, { pos = pos, chars = { ch } })
     end
     return targets
