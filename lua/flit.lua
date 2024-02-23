@@ -1,29 +1,7 @@
 local api = vim.api
 
 local state = { prev_input = nil }
-local last_search_args
 local last_pattern
-
-local function get_targets(pattern, backward)
-  local search = require('leap.search')
-  local bounds = search['get-horizontal-bounds']()
-  local match_positions = search['get-match-positions'](
-      pattern, bounds, { ['backward?'] = backward }
-  )
-  local targets = {}
-  local line_str
-  local prev_line
-  for _, pos in ipairs(match_positions) do
-    local line, col = unpack(pos)
-    if line ~= prev_line then
-      line_str = vim.fn.getline(line)
-      prev_line = line
-    end
-    local ch = vim.fn.strpart(line_str, col - 1, 1, true)
-    table.insert(targets, { pos = pos, chars = { ch } })
-  end
-  return targets
-end
 
 local function flit(f_args)
   local l_args = f_args.l_args
@@ -76,27 +54,54 @@ local function flit(f_args)
     return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
   end
 
-  l_args.targets = function()
-    local state = require('leap').state
-    local pattern
-    if state.args.dot_repeat then
-      pattern = state.dot_repeat_pattern
-    else
-      local input = get_input()
-      if not input then
-        return
+  local function get_targets(pattern, backward)
+    local search = require('leap.search')
+    local bounds = search['get-horizontal-bounds']()
+    local match_positions = search['get-match-positions'](
+        pattern, bounds, { ['backward?'] = backward }
+    )
+    local targets = {}
+    local line_str
+    local prev_line
+    for _, pos in ipairs(match_positions) do
+      local line, col = unpack(pos)
+      if line ~= prev_line then
+        line_str = vim.fn.getline(line)
+        prev_line = line
       end
-      pattern = get_pattern(input)
-      local mode = api.nvim_get_mode().mode
-      local dot_repeatable_op = mode:match('o') and vim.v.operator ~= 'y'
-      -- Do not save into `state.dot_repeat`, because that will be
-      -- replaced by `leap` completely when setting dot-repeat.
-      if dot_repeatable_op then
-        state.dot_repeat_pattern = pattern
-      end
+      local ch = vim.fn.strpart(line_str, col - 1, 1, true)
+      table.insert(targets, { pos = pos, chars = { ch } })
     end
-    last_pattern = pattern
-    return get_targets(pattern, f_args.l_args.backward)
+    return targets
+  end
+
+  if not f_args.last then
+    l_args.targets = function()
+      local state = require('leap').state
+      local pattern
+      if state.args.dot_repeat then
+        pattern = state.dot_repeat_pattern
+      else
+        local input = get_input()
+        if not input then
+          return
+        end
+        pattern = get_pattern(input)
+        local mode = api.nvim_get_mode().mode
+        local dot_repeatable_op = mode:match('o') and vim.v.operator ~= 'y'
+        -- Do not save into `state.dot_repeat`, because that will be
+        -- replaced by `leap` completely when setting dot-repeat.
+        if dot_repeatable_op then
+          state.dot_repeat_pattern = pattern
+        end
+      end
+      last_pattern = pattern
+      return get_targets(pattern, f_args.l_args.backward)
+    end
+  else
+    l_args.targets = function()
+      return get_targets(last_pattern, f_args.backward)
+    end
   end
 
   -- In any case, keep only safe labels.
@@ -141,16 +146,10 @@ local function flit(f_args)
   table.insert(l_args.opts.special_keys.next_target, ';')
   table.insert(l_args.opts.special_keys.prev_target, ',')
 
-  last_search_args = l_args
-  require('leap').leap(l_args)
-end
-
-local function get_last_l_args(inverse)
-  local l_args = last_search_args
-  l_args.targets = function()
-    return get_targets(last_pattern, inverse and not l_args.backward or l_args.backward)
+  if f_args.last and f_args.backward then
+    l_args.backward = f_args.backward
   end
-  return l_args
+  require('leap').leap(l_args)
 end
 
 local function setup(args)
@@ -189,7 +188,17 @@ local function setup(args)
       end)
     end
   end
-  vim.keymap.set('n', ';', function () require('leap').leap(get_last_l_args(false)) end)
+  vim.keymap.set('n', ';', function ()
+    local repeat_f_args = vim.deepcopy(f_args)
+    repeat_f_args.last = true
+    flit(repeat_f_args)
+  end)
+  vim.keymap.set('n', ',', function ()
+    local repeat_f_args = vim.deepcopy(f_args)
+    repeat_f_args.last = true
+    repeat_f_args.backward = true
+    flit(repeat_f_args)
+  end)
 
   -- Reinvent The Wheel #2
   -- Ridiculous hack to prevent having to expose a `multiline` flag in
