@@ -189,12 +189,7 @@ local function setup(args)
       end)
     end
   end
-  vim.keymap.set('n', ';', function ()
-    require('leap').leap(get_last_l_args(false))
-  end)
-  vim.keymap.set('n', ',', function ()
-    require('leap').leap(get_last_l_args(true))
-  end)
+  vim.keymap.set('n', ';', function () require('leap').leap(get_last_l_args(false)) end)
 
   -- Reinvent The Wheel #2
   -- Ridiculous hack to prevent having to expose a `multiline` flag in
