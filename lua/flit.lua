@@ -8,10 +8,9 @@ local function get_targets(pattern, backward)
   local search = require('leap.search')
   local bounds = search['get-horizontal-bounds']()
   local match_positions = search['get-match-positions'](
-    pattern, bounds, { ['backward?'] = backward }
+      pattern, bounds, { ['backward?'] = backward }
   )
   local targets = {}
-  local skipcc = vim.fn.has('nvim-0.10') == 1
   local line_str
   local prev_line
   for _, pos in ipairs(match_positions) do
@@ -20,13 +19,7 @@ local function get_targets(pattern, backward)
       line_str = vim.fn.getline(line)
       prev_line = line
     end
-    local start = vim.fn.charidx(line_str, col - 1)
-    local ch
-    if skipcc then
-      ch = vim.fn.strcharpart(line_str, start, 1, 1)
-    else
-      ch = vim.fn.strcharpart(line_str, start, 1)
-    end
+    local ch = vim.fn.strpart(line_str, col - 1, 1, true)
     table.insert(targets, { pos = pos, chars = { ch } })
   end
   return targets
@@ -82,7 +75,6 @@ local function flit(f_args)
     end
     return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
   end
-
 
   l_args.targets = function()
     local state = require('leap').state
