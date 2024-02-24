@@ -1,7 +1,7 @@
 local api = vim.api
 
 local state = { prev_input = nil }
-local last_pattern
+local last_pattern, last_backward
 
 local function flit(f_args)
   local l_args = f_args.l_args
@@ -96,11 +96,17 @@ local function flit(f_args)
         end
       end
       last_pattern = pattern
+      last_backward = f_args.l_args.backward
       return get_targets(pattern, f_args.l_args.backward)
     end
   else
     l_args.targets = function()
-      return get_targets(last_pattern, f_args.backward)
+      local backward = last_backward
+      if f_args.backward then
+        backward = not last_backward
+      end
+      require('leap').state.args.backward = backward
+      return get_targets(last_pattern, backward)
     end
   end
 
@@ -188,15 +194,12 @@ local function setup(args)
       end)
     end
   end
-  vim.keymap.set('n', ';', function ()
-    local repeat_f_args = vim.deepcopy(f_args)
-    repeat_f_args.last = true
+  vim.keymap.set('n', ';', function()
+    local repeat_f_args = vim.tbl_extend('force', f_args, { last = true })
     flit(repeat_f_args)
   end)
-  vim.keymap.set('n', ',', function ()
-    local repeat_f_args = vim.deepcopy(f_args)
-    repeat_f_args.last = true
-    repeat_f_args.backward = true
+  vim.keymap.set('n', ',', function()
+    local repeat_f_args = vim.tbl_extend('force', f_args, { last = true, backward = true })
     flit(repeat_f_args)
   end)
 
