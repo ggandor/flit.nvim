@@ -10,12 +10,13 @@ local function flit(f_args)
   -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
   local function get_input()
-    vim.cmd('echo ""')
     local hl = require('leap.highlight')
     if vim.v.count == 0 and not (f_args.unlabeled and vim.fn.mode(1):match('o')) then
       hl['apply-backdrop'](hl, l_args.backward)
     end
-    hl['highlight-cursor'](hl)
+    if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
+      hl['highlight-cursor'](hl)
+    end
     vim.cmd('redraw')
     local ch = require('leap.util')['get-input-by-keymap']({str = '>'})
     hl['cleanup'](hl, { vim.fn.win_getid() })
