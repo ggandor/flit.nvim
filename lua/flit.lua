@@ -5,14 +5,14 @@ local state = { prev_input = nil }
 
 local function flit(f_args)
   local l_args = f_args.l_args
+  local is_op_mode = vim.fn.mode(1):match('o')
 
   -- Reinvent The Wheel #1
   -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
   local function get_input()
     local should_apply_backdrop =
-      (vim.v.count == 0) and
-      not (vim.fn.mode(1):match('o') and f_args.unlabeled)
+      (vim.v.count == 0) and not (is_op_mode and f_args.unlabeled)
 
     local with_highlight_chores = function (f)
       local hl = require('leap.highlight')
@@ -99,8 +99,7 @@ local function flit(f_args)
         return
       end
       pattern = get_pattern(input)
-      local mode = api.nvim_get_mode().mode
-      local dot_repeatable_op = mode:match('o') and vim.v.operator ~= 'y'
+      local dot_repeatable_op = is_op_mode and vim.v.operator ~= 'y'
       -- Do not save into `state.dot_repeat`, because that will be
       -- replaced by `leap` completely when setting dot-repeat.
       if dot_repeatable_op then
