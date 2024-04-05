@@ -10,33 +10,45 @@ local function flit(f_args)
   -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
   local function get_input()
-    local hl = require('leap.highlight')
-    if vim.v.count == 0 and not (f_args.unlabeled and vim.fn.mode(1):match('o')) then
-      hl['apply-backdrop'](hl, l_args.backward)
-    end
-    if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
-      hl['highlight-cursor'](hl)
-    end
-    vim.cmd('redraw')
-    local ch = require('leap.util')['get-input-by-keymap']({str = '>'})
-    hl['cleanup'](hl, { vim.fn.win_getid() })
-    if not ch then
-      return
-    end
-    -- Repeat with the previous input?
-    local repeat_key = require('leap.opts').special_keys.next_target[1]
-    if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
-      if state.prev_input then
-        ch = state.prev_input
-      else
-        vim.cmd('echo "no previous search"')
-        return
+    local should_apply_backdrop =
+      (vim.v.count == 0) and
+      not (vim.fn.mode(1):match('o') and f_args.unlabeled)
+
+    local with_highlight_chores = function (f)
+      local hl = require('leap.highlight')
+      if should_apply_backdrop then
+        hl['apply-backdrop'](hl, l_args.backward)
       end
-    else
-      state.prev_input = ch
+      if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
+        hl['highlight-cursor'](hl)
+      end
+      vim.cmd('redraw')
+      local res = f()
+      hl['cleanup'](hl, { vim.fn.win_getid() })
+      return res
     end
-    return ch
+
+    local handle_repeat = function (ch)
+      local repeat_key = require('leap.opts').special_keys.next_target[1]
+      if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
+        if state.prev_input then
+          return state.prev_input
+        else
+          vim.cmd('echo "no previous search"')
+          return nil
+        end
+      else
+        state.prev_input = ch
+        return ch
+      end
+    end
+
+    local ch = with_highlight_chores(function ()
+      return require('leap.util')['get-input-by-keymap']({str = '>'})
+    end)
+    if ch then return handle_repeat(ch) end
   end
+
 
   local function get_pattern(input)
     -- See `expand-to-equivalence-class` in `leap`.
