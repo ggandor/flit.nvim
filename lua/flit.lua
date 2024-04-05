@@ -67,7 +67,7 @@ local function flit(f_args)
     return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
   end
 
-  local function get_targets(pattern)
+  local function get_matches_for(pattern)
     local search = require('leap.search')
     local bounds = search['get-horizontal-bounds']()
     local match_positions = search['get-match-positions'](
@@ -88,7 +88,7 @@ local function flit(f_args)
     return targets
   end
 
-  l_args.targets = function()
+  local function get_targets()
     local state = require('leap').state
     local pattern
     if state.args.dot_repeat then
@@ -106,50 +106,57 @@ local function flit(f_args)
         state.dot_repeat_pattern = pattern
       end
     end
-    return get_targets(pattern)
+    return get_matches_for(pattern)
   end
 
+  local function set_safe_labels(l_args)
+    if f_args.use_no_labels then
+      l_args.opts.safe_labels = {}
+    else
+      -- Remove labels conflicting with the next/prev keys.
+      -- The first label will be the repeat key itself.
+      -- (Note: this doesn't work well for non-alphabetic characters.)
+      -- Note: the t/f flags in `l_args` have been set in `setup`.
+      local filtered_labels = {}
+      local safe_labels = (l_args.opts.safe_labels or
+                           require('leap').opts.safe_labels)
+      if type(safe_labels) == 'string' then
+        safe_labels = vim.fn.split(safe_labels, '\\zs')
+      end
+      local to_ignore = (l_args.t and { f_args.keys.t, f_args.keys.T } or
+                                      { f_args.keys.f, f_args.keys.F })
+      for _, label in ipairs(safe_labels) do
+        if not vim.tbl_contains(to_ignore, label) then
+          table.insert(filtered_labels, label)
+        end
+      end
+      l_args.opts.safe_labels = filtered_labels
+    end
+  end
+
+  local function set_special_keys(l_args)
+    -- Set the next/prev ('clever-f') keys.
+    l_args.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
+    if type(l_args.opts.special_keys.next_target) == 'string' then
+      l_args.opts.special_keys.next_target = { l_args.opts.special_keys.next_target }
+    end
+    if type(l_args.opts.special_keys.prev_target) == 'string' then
+      l_args.opts.special_keys.prev_target = { l_args.opts.special_keys.prev_target }
+    end
+    table.insert(l_args.opts.special_keys.next_target,
+                 l_args.t and f_args.keys.t or f_args.keys.f)
+    table.insert(l_args.opts.special_keys.prev_target,
+                 l_args.t and f_args.keys.T or f_args.keys.F)
+    -- Add ; and , too.
+    table.insert(l_args.opts.special_keys.next_target, ';')
+    table.insert(l_args.opts.special_keys.prev_target, ',')
+  end
+
+  l_args.targets = get_targets
   -- In any case, keep only safe labels.
   l_args.opts.labels = {}
-
-  if f_args.use_no_labels then
-    l_args.opts.safe_labels = {}
-  else
-    -- Remove labels conflicting with the next/prev keys.
-    -- The first label will be the repeat key itself.
-    -- (Note: this doesn't work well for non-alphabetic characters.)
-    -- Note: the t/f flags in `l_args` have been set in `setup`.
-    local filtered_labels = {}
-    local safe_labels = (l_args.opts.safe_labels or
-                         require('leap').opts.safe_labels)
-    if type(safe_labels) == 'string' then
-      safe_labels = vim.fn.split(safe_labels, '\\zs')
-    end
-    local to_ignore = (l_args.t and { f_args.keys.t, f_args.keys.T } or
-                                    { f_args.keys.f, f_args.keys.F })
-    for _, label in ipairs(safe_labels) do
-      if not vim.tbl_contains(to_ignore, label) then
-        table.insert(filtered_labels, label)
-      end
-    end
-    l_args.opts.safe_labels = filtered_labels
-  end
-
-  -- Set the next/prev ('clever-f') keys.
-  l_args.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
-  if type(l_args.opts.special_keys.next_target) == 'string' then
-    l_args.opts.special_keys.next_target = { l_args.opts.special_keys.next_target }
-  end
-  if type(l_args.opts.special_keys.prev_target) == 'string' then
-    l_args.opts.special_keys.prev_target = { l_args.opts.special_keys.prev_target }
-  end
-  table.insert(l_args.opts.special_keys.next_target,
-               l_args.t and f_args.keys.t or f_args.keys.f)
-  table.insert(l_args.opts.special_keys.prev_target,
-               l_args.t and f_args.keys.T or f_args.keys.F)
-  -- Add ; and , too.
-  table.insert(l_args.opts.special_keys.next_target, ';')
-  table.insert(l_args.opts.special_keys.prev_target, ',')
+  set_safe_labels(l_args)
+  set_special_keys(l_args)
 
   require('leap').leap(l_args)
 end
