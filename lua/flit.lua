@@ -12,7 +12,7 @@ local function flit(f_args)
 
   local function get_input()
     local should_apply_backdrop =
-      (vim.v.count == 0) and not (is_op_mode and f_args.unlabeled)
+      (vim.v.count == 0) and not (is_op_mode and f_args.use_no_labels)
 
     local with_highlight_chores = function (f)
       local hl = require('leap.highlight')
@@ -112,7 +112,7 @@ local function flit(f_args)
   -- In any case, keep only safe labels.
   l_args.opts.labels = {}
 
-  if f_args.unlabeled then
+  if f_args.use_no_labels then
     l_args.opts.safe_labels = {}
   else
     -- Remove labels conflicting with the next/prev keys.
@@ -182,7 +182,7 @@ local function setup(args)
       -- NOTE: Make sure to create a new table for each mode (and not
       -- pass the outer one by reference here inside the loop).
       local f_args = vim.deepcopy(f_args)
-      f_args.unlabeled = not labeled_modes:match(mode)
+      f_args.use_no_labels = not labeled_modes:match(mode)
       for k, v in pairs(key_specific_leap_args[flit_key]) do
         f_args.l_args[k] = v
       end
