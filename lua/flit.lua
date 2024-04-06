@@ -3,55 +3,52 @@ local api = vim.api
 local state = { prev_input = nil }
 
 
-local function flit (f_args)
-  local l_args = f_args.l_args
+-- Reinvent The Wheel #1
+-- Custom targets callback, ~90% of it replicating what Leap does by default.
+
+local function get_targets_callback (backward, use_no_labels, multiline)
   local is_op_mode = vim.fn.mode(1):match('o')
 
-  -- Reinvent The Wheel #1
-  -- Custom targets callback, ~90% of it replicating what Leap does by default.
-
-  local function get_input ()
+  local with_highlight_chores = function (f)
     local should_apply_backdrop =
-      (vim.v.count == 0) and not (is_op_mode and f_args.use_no_labels)
+      (vim.v.count == 0) and not (is_op_mode and use_no_labels)
 
-    local with_highlight_chores = function (f)
-      local hl = require('leap.highlight')
-      if should_apply_backdrop then
-        hl['apply-backdrop'](hl, l_args.backward)
-      end
-      if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
-        hl['highlight-cursor'](hl)
-      end
-      vim.cmd('redraw')
-      local res = f()
-      hl['cleanup'](hl, { vim.fn.win_getid() })
-      return res
+    local hl = require('leap.highlight')
+    if should_apply_backdrop then
+      hl['apply-backdrop'](hl, backward)
     end
+    if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
+      hl['highlight-cursor'](hl)
+    end
+    vim.cmd('redraw')
+    local res = f()
+    hl['cleanup'](hl, { vim.fn.win_getid() })
+    return res
+  end
 
-    local handle_repeat = function (ch)
-      local repeat_key = require('leap.opts').special_keys.next_target[1]
-      if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
-        if state.prev_input then
-          return state.prev_input
-        else
-          vim.cmd('echo "no previous search"')
-          return nil
-        end
+  local handle_repeat = function (ch)
+    local repeat_key = require('leap.opts').special_keys.next_target[1]
+    if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
+      if state.prev_input then
+        return state.prev_input
       else
-        state.prev_input = ch
-        return ch
+        vim.cmd('echo "no previous search"')
+        return nil
       end
+    else
+      state.prev_input = ch
+      return ch
     end
+  end
 
+  local get_input = function ()
     local ch = with_highlight_chores(function ()
       return require('leap.util')['get-input-by-keymap']({str = '>'})
     end)
-
     if ch then return handle_repeat(ch) end
   end
 
-
-  local function get_pattern (input)
+  local get_pattern = function (input)
     -- See `expand-to-equivalence-class` in `leap`.
     -- Gotcha! 'leap'.opts redirects to 'leap.opts'.default - we want .current_call!
     local chars = require('leap.opts').eq_class_of[input]
@@ -67,14 +64,14 @@ local function flit (f_args)
       )
       input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- '\(a\|b\|c\)'
     end
-    return '\\V' .. (f_args.multiline == false and '\\%.l' or '') .. input
+    return '\\V' .. (multiline == false and '\\%.l' or '') .. input
   end
 
-  local function get_matches_for (pattern)
+  local get_matches_for = function (pattern)
     local search = require('leap.search')
     local bounds = search['get-horizontal-bounds']()
     local match_positions = search['get-match-positions'](
-        pattern, bounds, { ['backward?'] = l_args.backward }
+        pattern, bounds, { ['backward?'] = backward }
     )
     local targets = {}
     local line_str
@@ -91,7 +88,7 @@ local function flit (f_args)
     return targets
   end
 
-  local function get_targets ()
+  return function ()
     local state = require('leap').state
     local pattern
     if state.args.dot_repeat then
@@ -111,7 +108,11 @@ local function flit (f_args)
     end
     return get_matches_for(pattern)
   end
+end
 
+
+local function flit (f_args)
+  local l_args = f_args.l_args
 
   local function set_safe_labels (l_args)
     if f_args.use_no_labels then
@@ -141,7 +142,6 @@ local function flit (f_args)
     end
   end
 
-
   local function set_special_keys (l_args)
     -- Set the next/prev ('clever-f') keys.
     l_args.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
@@ -163,8 +163,9 @@ local function flit (f_args)
     table.insert(l_args.opts.special_keys.prev_target, ',')
   end
 
-
-  l_args.targets = get_targets
+  l_args.targets = get_targets_callback(
+    l_args.backward, f_args.use_no_labels, f_args.multiline
+  )
   -- In any case, keep only safe labels.
   l_args.opts.labels = {}
   set_safe_labels(l_args)
