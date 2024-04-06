@@ -111,115 +111,117 @@ local function get_targets_callback (backward, use_no_labels, multiline)
 end
 
 
-local function flit (f_args)
-  local l_args = f_args.l_args
+local function flit (kwargs)
+  local leap_kwargs = kwargs.leap_kwargs
 
-  local function set_safe_labels (l_args)
-    if f_args.use_no_labels then
-      l_args.opts.safe_labels = {}
+  local function set_safe_labels (leap_kwargs)
+    if kwargs.use_no_labels then
+      leap_kwargs.opts.safe_labels = {}
     else
       -- Remove labels conflicting with the next/prev keys.
       -- The first label will be the repeat key itself.
       -- (Note: this doesn't work well for non-alphabetic characters.)
-      -- Note: the t/f flags in `l_args` have been set in `setup`.
+      -- Note: the t/f flags in `leap_kwargs` have been set in `setup`.
       local filtered_labels = {}
       local safe_labels =
-        l_args.opts.safe_labels or require('leap').opts.safe_labels
+        leap_kwargs.opts.safe_labels or require('leap').opts.safe_labels
 
       if type(safe_labels) == 'string' then
         safe_labels = vim.fn.split(safe_labels, '\\zs')
       end
       local to_ignore =
-        l_args.t and { f_args.keys.t, f_args.keys.T } or
-                     { f_args.keys.f, f_args.keys.F }
+        leap_kwargs.t and { kwargs.keys.t, kwargs.keys.T } or
+                          { kwargs.keys.f, kwargs.keys.F }
 
       for _, label in ipairs(safe_labels) do
         if not vim.tbl_contains(to_ignore, label) then
           table.insert(filtered_labels, label)
         end
       end
-      l_args.opts.safe_labels = filtered_labels
+      leap_kwargs.opts.safe_labels = filtered_labels
     end
   end
 
-  local function set_special_keys (l_args)
+  local function set_special_keys (leap_kwargs)
     -- Set the next/prev ('clever-f') keys.
-    l_args.opts.special_keys = vim.deepcopy(require('leap').opts.special_keys)
-    if type(l_args.opts.special_keys.next_target) == 'string' then
-      l_args.opts.special_keys.next_target =
-        { l_args.opts.special_keys.next_target }
-    end
-    if type(l_args.opts.special_keys.prev_target) == 'string' then
-      l_args.opts.special_keys.prev_target =
-        { l_args.opts.special_keys.prev_target }
-    end
-    table.insert(l_args.opts.special_keys.next_target,
-                 l_args.t and f_args.keys.t or f_args.keys.f)
+    leap_kwargs.opts.special_keys =
+      vim.deepcopy(require('leap').opts.special_keys)
 
-    table.insert(l_args.opts.special_keys.prev_target,
-                 l_args.t and f_args.keys.T or f_args.keys.F)
+    if type(leap_kwargs.opts.special_keys.next_target) == 'string' then
+      leap_kwargs.opts.special_keys.next_target =
+        { leap_kwargs.opts.special_keys.next_target }
+    end
+    if type(leap_kwargs.opts.special_keys.prev_target) == 'string' then
+      leap_kwargs.opts.special_keys.prev_target =
+        { leap_kwargs.opts.special_keys.prev_target }
+    end
+    table.insert(leap_kwargs.opts.special_keys.next_target,
+                 leap_kwargs.t and kwargs.keys.t or kwargs.keys.f)
+
+    table.insert(leap_kwargs.opts.special_keys.prev_target,
+                 leap_kwargs.t and kwargs.keys.T or kwargs.keys.F)
     -- Add ; and , too.
-    table.insert(l_args.opts.special_keys.next_target, ';')
-    table.insert(l_args.opts.special_keys.prev_target, ',')
+    table.insert(leap_kwargs.opts.special_keys.next_target, ';')
+    table.insert(leap_kwargs.opts.special_keys.prev_target, ',')
   end
 
-  l_args.targets = get_targets_callback(
-    l_args.backward, f_args.use_no_labels, f_args.multiline
+  leap_kwargs.targets = get_targets_callback(
+    leap_kwargs.backward, kwargs.use_no_labels, kwargs.multiline
   )
   -- In any case, keep only safe labels.
-  l_args.opts.labels = {}
-  set_safe_labels(l_args)
-  set_special_keys(l_args)
+  leap_kwargs.opts.labels = {}
+  set_safe_labels(leap_kwargs)
+  set_special_keys(leap_kwargs)
 
-  require('leap').leap(l_args)
+  require('leap').leap(leap_kwargs)
 end
 
 
-local function setup (args)
-  local setup_args = args or {}
+local function setup (kwargs)
+  local kwargs = kwargs or {}
 
-  -- f_args -> argument table for `flit()`
-  local f_args = {}
-  f_args.multiline = setup_args.multiline
+  -- Argument table for `flit()`.
+  local flit_kwargs = {}
+  flit_kwargs.multiline = kwargs.multiline
 
-  -- l_args -> argument table for the `leap()` call inside `flit()`
-  f_args.l_args = {}
-  f_args.l_args.opts = setup_args.opts or {} --> would-be `opts.current_call`
-  f_args.l_args.ft = true  -- flag for the autocommands below (non-multiline hack)
-  f_args.l_args.inclusive_op = true
+  -- Argument table for the `leap()` call inside `flit()`.
+  flit_kwargs.leap_kwargs = {}
+  flit_kwargs.leap_kwargs.opts = kwargs.opts or {} --> would-be `opts.current_call`
+  flit_kwargs.leap_kwargs.ft = true  -- flag for the autocommands below (non-multiline hack)
+  flit_kwargs.leap_kwargs.inclusive_op = true
 
   -- Set keymappings.
-  f_args.keys = setup_args.keys or
-                setup_args.keymaps or
-                { f = 'f', F = 'F', t = 't', T = 'T' }
+  flit_kwargs.keys = kwargs.keys or
+                     kwargs.keymaps or
+                     { f = 'f', F = 'F', t = 't', T = 'T' }
 
-  local key_specific_leap_args = {
-    [f_args.keys.f] = {},
-    [f_args.keys.F] = { backward = true },
-    [f_args.keys.t] = { offset = -1, t = true },
-    [f_args.keys.T] = { backward = true, offset = 1, t = true }
+  local key_specific_leap_kwargs = {
+    [flit_kwargs.keys.f] = {},
+    [flit_kwargs.keys.F] = { backward = true },
+    [flit_kwargs.keys.t] = { offset = -1, t = true },
+    [flit_kwargs.keys.T] = { backward = true, offset = 1, t = true }
   }
 
   local labeled_modes =
-    setup_args.labeled_modes and setup_args.labeled_modes:gsub('v', 'x') or 'x'
+    kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or 'x'
 
   for _, mode in ipairs({'n', 'x', 'o'}) do
-    for _, flit_key in pairs(f_args.keys) do
+    for _, flit_key in pairs(flit_kwargs.keys) do
       -- NOTE: Make sure to create a new table for each mode (and not
       -- pass the outer one by reference here inside the loop).
-      local f_args = vim.deepcopy(f_args)
-      f_args.use_no_labels = not labeled_modes:match(mode)
-      for k, v in pairs(key_specific_leap_args[flit_key]) do
-        f_args.l_args[k] = v
+      local flit_kwargs = vim.deepcopy(flit_kwargs)
+      flit_kwargs.use_no_labels = not labeled_modes:match(mode)
+      for k, v in pairs(key_specific_leap_kwargs[flit_key]) do
+        flit_kwargs.leap_kwargs[k] = v
       end
-      vim.keymap.set(mode, flit_key, function () flit(f_args) end)
+      vim.keymap.set(mode, flit_key, function () flit(flit_kwargs) end)
     end
   end
 
   -- Reinvent The Wheel #2
   -- Ridiculous hack to prevent having to expose a `multiline` flag in
   -- the core: switch Leap's backdrop function to our special one here.
-  if setup_args.multiline == false then
+  if kwargs.multiline == false then
     local state = require('leap').state
 
     local function backdrop_current_line ()
