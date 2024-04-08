@@ -142,7 +142,7 @@ local function flit (kwargs)
     end
   end
 
-  local function set_special_keys (leap_kwargs)
+  local function set_traversal_keys (leap_kwargs)
     -- Set the next/prev ('clever-f') keys.
     leap_kwargs.opts.special_keys =
       vim.deepcopy(require('leap').opts.special_keys)
@@ -171,7 +171,7 @@ local function flit (kwargs)
   -- In any case, keep only safe labels.
   leap_kwargs.opts.labels = {}
   set_safe_labels(leap_kwargs)
-  set_special_keys(leap_kwargs)
+  set_traversal_keys(leap_kwargs)
 
   require('leap').leap(leap_kwargs)
 end
