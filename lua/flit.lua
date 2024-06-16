@@ -142,7 +142,7 @@ local function flit (kwargs)
 end
 
 
-local function clever_f (f, F, t, T)
+local function set_clever_repeat (f, F, t, T)
   api.nvim_create_augroup('FlitCleverF', {})
   api.nvim_create_autocmd('User', {
     pattern = 'LeapEnter',
@@ -188,7 +188,7 @@ local function setup (kwargs)
   -- Argument table for the `leap()` call inside `flit()`.
   flit_kwargs.leap_kwargs = {}
   flit_kwargs.leap_kwargs.opts = kwargs.opts or {} --> would-be `opts.current_call`
-  -- Flag for autocommands (see `clever_f` & non-multiline hack).
+  -- Flag for autocommands (see `set_clever_repeat` & non-multiline hack).
   flit_kwargs.leap_kwargs.ft = true
   flit_kwargs.leap_kwargs.inclusive_op = true
 
@@ -219,12 +219,9 @@ local function setup (kwargs)
     end
   end
 
-  clever_f(
-    flit_kwargs.keys.f,
-    flit_kwargs.keys.F,
-    flit_kwargs.keys.t,
-    flit_kwargs.keys.T
-  )
+  if kwargs.clever_repeat ~= false then
+    set_clever_repeat(keys.f, keys.F, keys.t, keys.T)
+  end
 
   -- Reinvent The Wheel #2
   -- Ridiculous hack to prevent having to expose a `multiline` flag in
