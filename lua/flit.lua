@@ -178,6 +178,47 @@ local function set_clever_repeat (f, F, t, T)
 end
 
 
+-- Reinvent The Wheel #2
+-- Ridiculous hack to prevent having to expose a `multiline` flag in
+-- the core: switch Leap's backdrop function to our special one here.
+
+local function limit_backdrop_scope_to_current_line ()
+  local state = require('leap').state
+
+  local function backdrop_current_line ()
+    local hl = require('leap.highlight')
+    if pcall(api.nvim_get_hl_by_name, hl.group.backdrop, false) then
+        local curline = vim.fn.line('.') - 1  -- API indexing
+        local curcol = vim.fn.col('.')
+        local startcol = state.args.backward and 0 or (curcol + 1)
+        local endcol = state.args.backward and (curcol - 1) or (vim.fn.col('$') - 1)
+        vim.highlight.range(0, hl.ns, hl.group.backdrop,
+          { curline, startcol }, { curline, endcol },
+          { priority = hl.priority.backdrop }
+        )
+    end
+  end
+
+  api.nvim_create_augroup('Flit', {})
+  api.nvim_create_autocmd('User', { pattern = 'LeapEnter', group = 'Flit',
+    callback = function ()
+      if state.args.ft then
+        state.saved_backdrop_fn = require('leap.highlight')['apply-backdrop']
+        require('leap.highlight')['apply-backdrop'] = backdrop_current_line
+      end
+    end
+  })
+  api.nvim_create_autocmd('User', { pattern = 'LeapLeave', group = 'Flit',
+    callback = function ()
+      if state.args.ft then
+        require('leap.highlight')['apply-backdrop'] = state.saved_backdrop_fn
+        state.saved_backdrop_fn = nil
+      end
+    end
+  })
+end
+
+
 local function setup (kwargs)
   local kwargs = kwargs or {}
 
@@ -223,43 +264,8 @@ local function setup (kwargs)
     set_clever_repeat(keys.f, keys.F, keys.t, keys.T)
   end
 
-  -- Reinvent The Wheel #2
-  -- Ridiculous hack to prevent having to expose a `multiline` flag in
-  -- the core: switch Leap's backdrop function to our special one here.
   if kwargs.multiline == false then
-    local state = require('leap').state
-
-    local function backdrop_current_line ()
-      local hl = require('leap.highlight')
-      if pcall(api.nvim_get_hl_by_name, hl.group.backdrop, false) then
-          local curline = vim.fn.line('.') - 1  -- API indexing
-          local curcol = vim.fn.col('.')
-          local startcol = state.args.backward and 0 or (curcol + 1)
-          local endcol = state.args.backward and (curcol - 1) or (vim.fn.col('$') - 1)
-          vim.highlight.range(0, hl.ns, hl.group.backdrop,
-            { curline, startcol }, { curline, endcol },
-            { priority = hl.priority.backdrop }
-          )
-      end
-    end
-
-    api.nvim_create_augroup('Flit', {})
-    api.nvim_create_autocmd('User', { pattern = 'LeapEnter', group = 'Flit',
-      callback = function ()
-        if state.args.ft then
-          state.saved_backdrop_fn = require('leap.highlight')['apply-backdrop']
-          require('leap.highlight')['apply-backdrop'] = backdrop_current_line
-        end
-      end
-    })
-    api.nvim_create_autocmd('User', { pattern = 'LeapLeave', group = 'Flit',
-      callback = function ()
-        if state.args.ft then
-          require('leap.highlight')['apply-backdrop'] = state.saved_backdrop_fn
-          state.saved_backdrop_fn = nil
-        end
-      end
-    })
+    limit_backdrop_scope_to_current_line()
   end
 end
 
