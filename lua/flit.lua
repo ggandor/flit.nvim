@@ -160,6 +160,8 @@ local function set_clever_repeat (f, F, t, T)
       local safe_labels = require('leap').opts.safe_labels
       if #safe_labels > 0 then
         local filtered_labels = {}
+        -- Note: this is executed on `LeapEnter`, so the label lists
+        -- have already been converted to tables.
         for _, label in ipairs(safe_labels) do
           if label ~= (args.t and t or f) and label ~= (args.t and T or F) then
             table.insert(filtered_labels, label)
