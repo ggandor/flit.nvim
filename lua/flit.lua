@@ -113,22 +113,22 @@ local function get_targets_callback (backward, use_no_labels, multiline)
 end
 
 
-local function flit (kwargs)
-  local leap_kwargs = kwargs.leap_kwargs
-  leap_kwargs.targets = get_targets_callback(
-    leap_kwargs.backward,
-    kwargs.use_no_labels,
-    kwargs.multiline
+local function flit (args)
+  local leap_args = args.leap_args
+  leap_args.targets = get_targets_callback(
+    leap_args.backward,
+    args.use_no_labels,
+    args.multiline
   )
-  leap_kwargs.opts.labels = {}
-  if kwargs.use_no_labels then
-    leap_kwargs.opts.safe_labels = {}
+  leap_args.opts.labels = {}
+  if args.use_no_labels then
+    leap_args.opts.safe_labels = {}
   end
 
   -- Add `;`/`,` as next/prev keys.
-  leap_kwargs.opts.special_keys =
+  leap_args.opts.special_keys =
     vim.deepcopy(require('leap.opts').default.special_keys)
-  local sk = leap_kwargs.opts.special_keys
+  local sk = leap_args.opts.special_keys
   if type(sk.next_target) == 'string' then
     sk.next_target = { sk.next_target }
   end
@@ -138,7 +138,7 @@ local function flit (kwargs)
   table.insert(sk.next_target, ';')
   table.insert(sk.prev_target, ',')
 
-  require('leap').leap(leap_kwargs)
+  require('leap').leap(leap_args)
 end
 
 
@@ -156,7 +156,7 @@ local function set_clever_repeat (f, F, t, T)
       local cc_opts = require('leap.opts').current_call
 
       -- Remove labels conflicting with the next/prev keys.
-      -- (Note: the t/f flags in `leap_kwargs` have been set in `setup`.)
+      -- (Note: the t/f flags in `leap_args` have been set in `setup`.)
       local safe_labels = require('leap').opts.safe_labels
       if #safe_labels > 0 then
         local filtered_labels = {}
@@ -219,27 +219,27 @@ local function limit_backdrop_scope_to_current_line ()
 end
 
 
-local function setup (kwargs)
-  local kwargs = kwargs or {}
+local function setup (args)
+  local args = args or {}
 
   -- Argument table for `flit()`.
-  local flit_kwargs = {}
-  flit_kwargs.multiline = kwargs.multiline
+  local flit_args = {}
+  flit_args.multiline = args.multiline
 
   -- Argument table for the `leap()` call inside `flit()`.
-  flit_kwargs.leap_kwargs = {}
-  flit_kwargs.leap_kwargs.opts = kwargs.opts or {} --> would-be `opts.current_call`
+  flit_args.leap_args = {}
+  flit_args.leap_args.opts = args.opts or {} --> would-be `opts.current_call`
   -- Flag for autocommands (see `set_clever_repeat` & non-multiline hack).
-  flit_kwargs.leap_kwargs.ft = true
-  flit_kwargs.leap_kwargs.inclusive_op = true
+  flit_args.leap_args.ft = true
+  flit_args.leap_args.inclusive_op = true
 
   -- Set keymappings.
   local labeled_modes =
-    kwargs.labeled_modes and kwargs.labeled_modes:gsub('v', 'x') or 'x'
+    args.labeled_modes and args.labeled_modes:gsub('v', 'x') or 'x'
 
-  keys = kwargs.keys or kwargs.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
 
-  local key_specific_leap_kwargs = {
+  local key_specific_leap_args = {
     [keys.f] = {},
     [keys.F] = { backward = true },
     [keys.t] = { offset = -1, t = true },
@@ -250,21 +250,21 @@ local function setup (kwargs)
     for _, key in pairs(keys) do
       -- NOTE: Make sure to create a new table for each mode (and not
       -- pass the outer one by reference here inside the loop).
-      local flit_kwargs = vim.deepcopy(flit_kwargs)
-      flit_kwargs.use_no_labels = not labeled_modes:match(mode)
-      for k, v in pairs(key_specific_leap_kwargs[key]) do
-        flit_kwargs.leap_kwargs[k] = v
+      local flit_args = vim.deepcopy(flit_args)
+      flit_args.use_no_labels = not labeled_modes:match(mode)
+      for k, v in pairs(key_specific_leap_args[key]) do
+        flit_args.leap_args[k] = v
       end
 
-      vim.keymap.set(mode, key, function () flit(flit_kwargs) end)
+      vim.keymap.set(mode, key, function () flit(flit_args) end)
     end
   end
 
-  if kwargs.clever_repeat ~= false then
+  if args.clever_repeat ~= false then
     set_clever_repeat(keys.f, keys.F, keys.t, keys.T)
   end
 
-  if kwargs.multiline == false then
+  if args.multiline == false then
     limit_backdrop_scope_to_current_line()
   end
 end
