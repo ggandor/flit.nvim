@@ -1,12 +1,16 @@
 local api = vim.api
 
-local state = { prev_input = nil }
+local state = {
+  prev_input = nil,
+  dot_repeat_pattern = nil,
+}
 
 
 -- Reinvent The Wheel #1
 -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
 local function get_targets_callback (backward, use_no_labels, multiline)
+
   local is_op_mode = vim.fn.mode(1):match('o')
 
   local with_highlight_chores = function (f)
@@ -90,10 +94,10 @@ local function get_targets_callback (backward, use_no_labels, multiline)
     return targets
   end
 
+  -- Will be invoked inside `leap()`.
   return function ()
-    local state = require('leap').state
     local pattern
-    if state.args.dot_repeat then
+    if require('leap').state.args.dot_repeat then
       pattern = state.dot_repeat_pattern
     else
       local input = get_input()
@@ -102,8 +106,6 @@ local function get_targets_callback (backward, use_no_labels, multiline)
       end
       pattern = get_pattern(input)
       local dot_repeatable_op = is_op_mode and vim.v.operator ~= 'y'
-      -- Do not save into `state.dot_repeat`, because that will be
-      -- replaced by `leap` completely when setting dot-repeat.
       if dot_repeatable_op then
         state.dot_repeat_pattern = pattern
       end
