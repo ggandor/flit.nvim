@@ -105,7 +105,8 @@ local function get_targets_callback (backward, use_no_labels, multiline)
         return
       end
       pattern = get_pattern(input)
-      local dot_repeatable_op = is_op_mode and vim.v.operator ~= 'y'
+      local dot_repeatable_op = is_op_mode and (vim.o.cpo:match('y') or
+                                                vim.v.operator ~= 'y')
       if dot_repeatable_op then
         state.dot_repeat_pattern = pattern
       end
