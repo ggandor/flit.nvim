@@ -19,13 +19,16 @@ local function get_targets_callback (backward, use_no_labels, multiline)
 
     local hl = require('leap.highlight')
     if should_apply_backdrop then
+      -- !! non-public Leap API
       hl['apply-backdrop'](hl, backward)
     end
     if vim.fn.has('nvim-0.10') == 0 then  -- leap#70
+      -- !! non-public Leap API
       hl['highlight-cursor'](hl)
     end
     vim.cmd('redraw')
     local res = f()
+    -- !! non-public Leap API
     hl['cleanup'](hl, { vim.fn.win_getid() })
     return res
   end
@@ -49,6 +52,7 @@ local function get_targets_callback (backward, use_no_labels, multiline)
 
   local get_input = function ()
     local ch = with_highlight_chores(function ()
+      -- !! non-public Leap API
       return require('leap.util')['get-input-by-keymap']({str = '>'})
     end)
     if ch then return handle_repeat(ch) end
@@ -75,7 +79,9 @@ local function get_targets_callback (backward, use_no_labels, multiline)
 
   local get_matches_for = function (pattern)
     local search = require('leap.search')
+    -- !! non-public Leap API
     local bounds = search['get-horizontal-bounds']()
+    -- !! non-public Leap API
     local match_positions = search['get-match-positions'](
         pattern, bounds, { ['backward?'] = backward }
     )
@@ -156,6 +162,7 @@ local function set_clever_repeat (f, F, t, T)
         return
       end
 
+      -- !! non-public Leap API
       local cc_opts = require('leap.opts').current_call
 
       -- Remove labels conflicting with the next/prev keys.
@@ -192,11 +199,13 @@ local function limit_backdrop_scope_to_current_line ()
 
   local function backdrop_current_line ()
     local hl = require('leap.highlight')
+    -- !! non-public Leap API
     if pcall(api.nvim_get_hl_by_name, hl.group.backdrop, false) then
         local curline = vim.fn.line('.') - 1  -- API indexing
         local curcol = vim.fn.col('.')
         local startcol = state.args.backward and 0 or (curcol + 1)
         local endcol = state.args.backward and (curcol - 1) or (vim.fn.col('$') - 1)
+        -- !! non-public Leap API
         vim.highlight.range(0, hl.ns, hl.group.backdrop,
           { curline, startcol }, { curline, endcol },
           { priority = hl.priority.backdrop }
@@ -208,6 +217,7 @@ local function limit_backdrop_scope_to_current_line ()
   api.nvim_create_autocmd('User', { pattern = 'LeapEnter', group = 'Flit',
     callback = function ()
       if state.args.ft then
+        -- !! non-public Leap API
         state.saved_backdrop_fn = require('leap.highlight')['apply-backdrop']
         require('leap.highlight')['apply-backdrop'] = backdrop_current_line
       end
@@ -216,6 +226,7 @@ local function limit_backdrop_scope_to_current_line ()
   api.nvim_create_autocmd('User', { pattern = 'LeapLeave', group = 'Flit',
     callback = function ()
       if state.args.ft then
+        -- !! non-public Leap API
         require('leap.highlight')['apply-backdrop'] = state.saved_backdrop_fn
         state.saved_backdrop_fn = nil
       end
