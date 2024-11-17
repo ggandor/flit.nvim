@@ -3,13 +3,24 @@ local api = vim.api
 local state = {
   prev_input = nil,
   dot_repeat_pattern = nil,
+  -- TODO: last_offset for t/T repetition
+  last_pattern = nil,
+  last_backward = nil
 }
-
 
 -- Reinvent The Wheel #1
 -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
-local function get_targets_callback (backward, use_no_labels, multiline)
+local function get_targets_callback (backward, use_no_labels, multiline, last)
+  if last then
+    -- Mimick how vim's default f/F repetition with ;/, works
+    -- Cases:
+    -- want to go forward,  last search went forward  => go forward
+    -- want to go forward,  last search went backward => go backward
+    -- want to go backward, last search went forward  => go backward
+    -- want to go backward, last search went backward => go forward
+    backward = (not backward) ~= (not state.last_backward)
+  end
 
   local is_op_mode = vim.fn.mode(1):match('o')
 
@@ -94,25 +105,31 @@ local function get_targets_callback (backward, use_no_labels, multiline)
     return targets
   end
 
-  -- Will be invoked inside `leap()`.
-  return function ()
-    local pattern
-    if require('leap').state.args.dot_repeat then
-      pattern = state.dot_repeat_pattern
-    else
-      local input = get_input()
-      if not input then
-        return
+	-- Will be invoked inside `leap()`.
+	return function()
+		local pattern
+		if require("leap").state.args.dot_repeat then
+			pattern = state.dot_repeat_pattern
+		elseif last then
+      if not state.last_pattern then
+        return {}
       end
-      pattern = get_pattern(input)
-      local dot_repeatable_op = is_op_mode and (vim.o.cpo:match('y') or
-                                                vim.v.operator ~= 'y')
-      if dot_repeatable_op then
-        state.dot_repeat_pattern = pattern
-      end
-    end
-    return get_matches_for(pattern)
-  end
+      pattern = state.last_pattern
+		else
+			local input = get_input()
+			if not input then
+				return
+			end
+			pattern = get_pattern(input)
+			local dot_repeatable_op = is_op_mode and (vim.o.cpo:match("y") or vim.v.operator ~= "y")
+			if dot_repeatable_op then
+				state.dot_repeat_pattern = pattern
+			end
+			state.last_pattern = pattern
+			state.last_backward = backward
+		end
+		return get_matches_for(pattern)
+	end
 end
 
 
@@ -121,7 +138,8 @@ local function flit (args)
   leap_args.targets = get_targets_callback(
     leap_args.backward,
     args.use_no_labels,
-    args.multiline
+    args.multiline,
+    args.last
   )
   leap_args.opts.labels = {}
   if args.use_no_labels then
@@ -138,8 +156,10 @@ local function flit (args)
   if type(sk.prev_target) == 'string' then
     sk.prev_target = { sk.prev_target }
   end
-  table.insert(sk.next_target, ';')
-  table.insert(sk.prev_target, ',')
+  if not args.last then
+    table.insert(sk.next_target, ';')
+    table.insert(sk.prev_target, ',')
+  end
 
   require('leap').leap(leap_args)
 end
@@ -264,6 +284,21 @@ local function setup (args)
       vim.keymap.set(mode, key, function () flit(flit_args) end)
     end
   end
+
+  vim.keymap.set("n", ";", function()
+		local repeat_flit_args = vim.tbl_deep_extend("force", flit_args, {
+			last = true,
+		})
+		flit(repeat_flit_args)
+  end, {desc = "flit: repeat last search ; operator"})
+
+	vim.keymap.set("n", ",", function()
+		local repeat_flit_args = vim.tbl_deep_extend("force", flit_args, {
+			last = true,
+			leap_args = { backward = true },
+		})
+		flit(repeat_flit_args)
+	end, {desc = "flit: repeat last search , operator"})
 
   if args.clever_repeat ~= false then
     set_clever_repeat(keys.f, keys.F, keys.t, keys.T)
