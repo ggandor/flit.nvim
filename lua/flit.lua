@@ -128,6 +128,9 @@ local function flit (args)
   local leap_args = args.leap_args
   print(vim.inspect(args))
   if args.last then
+    -- Without deep copy, deciding whether search should go backward will
+    -- influence parent table of the keymaps
+    leap_args = vim.deepcopy(leap_args)
     -- Mimick how vim's default f/F repetition with ;/, works
     -- Cases:
     -- want to go forward,  last search went forward  => go forward
@@ -265,14 +268,16 @@ local function setup (args)
   local labeled_modes =
     args.labeled_modes and args.labeled_modes:gsub('v', 'x') or 'x'
 
-  local keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  local keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T', semicolon = ';', comma = ','}
 
-  local key_specific_leap_args = {
-    [keys.f] = {},
-    [keys.F] = { backward = true },
-    [keys.t] = { offset = -1, t = true },
-    [keys.T] = { backward = true, offset = 1, t = true }
-  }
+	local key_specific_flit_args = {
+		[keys.f] = { leap_args = {} },
+		[keys.F] = { leap_args = { backward = true } },
+		[keys.t] = { leap_args = { offset = -1, t = true } },
+		[keys.T] = { leap_args = { backward = true, offset = 1, t = true } },
+		[keys.semicolon] = { last = true },
+		[keys.comma] = { last = true, leap_args = { backward = true } },
+	}
 
   for _, mode in ipairs({'n', 'x', 'o'}) do
     for _, key in pairs(keys) do
@@ -280,30 +285,11 @@ local function setup (args)
       -- pass the outer one by reference here inside the loop).
       local flit_args = vim.deepcopy(flit_args)
       flit_args.use_no_labels = not labeled_modes:match(mode)
-      for k, v in pairs(key_specific_leap_args[key]) do
-        flit_args.leap_args[k] = v
-      end
+      flit_args = vim.tbl_deep_extend("force", flit_args, key_specific_flit_args[key])
 
       vim.keymap.set(mode, key, function () flit(flit_args) end)
     end
   end
-
-  vim.keymap.set("n", ";", function()
-		local repeat_flit_args = vim.tbl_deep_extend("force", flit_args, {
-			last = true,
-		})
-    -- NOTE: deepcopying for the same reasons as above
-		flit(vim.deepcopy(repeat_flit_args))
-  end, {desc = "flit: repeat last search ; operator"})
-
-	vim.keymap.set("n", ",", function()
-		local repeat_flit_args = vim.tbl_deep_extend("force", flit_args, {
-			last = true,
-			leap_args = { backward = true },
-		})
-    -- NOTE: deepcopying for the same reasons as above
-		flit(vim.deepcopy(repeat_flit_args))
-	end, {desc = "flit: repeat last search , operator"})
 
   if args.clever_repeat ~= false then
     set_clever_repeat(keys.f, keys.F, keys.t, keys.T)
