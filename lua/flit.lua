@@ -57,10 +57,12 @@ local function get_targets_callback (backward, use_no_labels, multiline, repeat_
     if ch then return handle_repeat(ch) end
   end
 
+  -- Construct search pattern from input
   local get_pattern = function (input)
     -- See `expand-to-equivalence-class` in `leap`.
     -- Gotcha! 'leap'.opts redirects to 'leap.opts'.default - we want .current_call!
     local chars = require('leap.opts').eq_class_of[input]
+    -- Sanitize input and produce pattern out of each char
     if chars then
       chars = vim.tbl_map(
         function (ch)
@@ -73,6 +75,9 @@ local function get_targets_callback (backward, use_no_labels, multiline, repeat_
       )
       input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- '\(a\|b\|c\)'
     end
+    -- Construct final search query
+    -- \V – disable any magic character(all magic happens explicitly)
+    -- \\%.l – search only on current line
     return '\\V' .. (multiline == false and '\\%.l' or '') .. input
   end
 
