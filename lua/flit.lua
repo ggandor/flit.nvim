@@ -260,7 +260,7 @@ local function setup (args)
   local labeled_modes =
     args.labeled_modes and args.labeled_modes:gsub('v', 'x') or 'x'
 
-  keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  local keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
 
   local key_specific_leap_args = {
     [keys.f] = {},
