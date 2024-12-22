@@ -2,14 +2,17 @@ local api = vim.api
 
 local state = {
   prev_input = nil,
-  dot_repeat_pattern = nil,
+  last = {
+    pattern = nil,
+    backward = false,
+    offset = 0,
+  }
 }
-
 
 -- Reinvent The Wheel #1
 -- Custom targets callback, ~90% of it replicating what Leap does by default.
 
-local function get_targets_callback (backward, use_no_labels, multiline)
+local function get_targets_callback (backward, use_no_labels, multiline, repeat_last)
 
   local is_op_mode = vim.fn.mode(1):match('o')
 
@@ -54,10 +57,12 @@ local function get_targets_callback (backward, use_no_labels, multiline)
     if ch then return handle_repeat(ch) end
   end
 
+  -- Construct search pattern from input
   local get_pattern = function (input)
     -- See `expand-to-equivalence-class` in `leap`.
     -- Gotcha! 'leap'.opts redirects to 'leap.opts'.default - we want .current_call!
     local chars = require('leap.opts').eq_class_of[input]
+    -- Sanitize input and produce pattern out of each char
     if chars then
       chars = vim.tbl_map(
         function (ch)
@@ -70,6 +75,9 @@ local function get_targets_callback (backward, use_no_labels, multiline)
       )
       input = '\\(' .. table.concat(chars, '\\|') .. '\\)'  -- '\(a\|b\|c\)'
     end
+    -- Construct final search query
+    -- \V – disable any magic character(all magic happens explicitly)
+    -- \\%.l – search only on current line
     return '\\V' .. (multiline == false and '\\%.l' or '') .. input
   end
 
@@ -94,34 +102,62 @@ local function get_targets_callback (backward, use_no_labels, multiline)
     return targets
   end
 
-  -- Will be invoked inside `leap()`.
-  return function ()
-    local pattern
-    if require('leap').state.args.dot_repeat then
-      pattern = state.dot_repeat_pattern
-    else
-      local input = get_input()
-      if not input then
-        return
+	-- Will be invoked inside `leap()`.
+	return function()
+		local pattern
+		if require("leap").state.args.dot_repeat or repeat_last then
+			pattern = state.last.pattern
+      if not state.last.pattern then
+        return {}
       end
-      pattern = get_pattern(input)
-      local dot_repeatable_op = is_op_mode and (vim.o.cpo:match('y') or
-                                                vim.v.operator ~= 'y')
-      if dot_repeatable_op then
-        state.dot_repeat_pattern = pattern
-      end
-    end
-    return get_matches_for(pattern)
-  end
+		else
+			local input = get_input()
+			if not input then
+				return
+			end
+			pattern = get_pattern(input)
+			state.last.pattern = pattern
+			state.last.backward = not not backward
+		end
+		return get_matches_for(pattern)
+	end
 end
 
 
 local function flit (args)
   local leap_args = args.leap_args
+  local initial_backward = leap_args.backward
+
+  if not args.last then
+    state.last.offset = leap_args.offset
+  else
+    -- Without deep copy, deciding whether search should go backward will
+    -- influence parent table of the keymaps
+    leap_args = vim.deepcopy(leap_args)
+    if state.last.offset then
+      if leap_args.backward then
+        leap_args.offset = -state.last.offset
+      else
+        leap_args.offset = state.last.offset
+      end
+    end
+    -- Mimic how vim's default f/F repetition with ;/, works
+    --
+    -- Cases:
+    -- want to go forward(;),  last search went forward  => go forward
+    -- want to go forward(;),  last search went backward => go backward
+    -- want to go backward(,), last search went forward  => go backward
+    -- want to go backward(,), last search went backward => go forward
+    --
+    -- XOR on booleans, see <https://gist.github.com/gilzoide/6d7c435e4585f8ba96592f89f2442845?permalink_comment_id=4795151#gistcomment-4795151>
+    leap_args.backward = (not leap_args.backward) ~= (not state.last.backward)
+  end
+
   leap_args.targets = get_targets_callback(
     leap_args.backward,
     args.use_no_labels,
-    args.multiline
+    args.multiline,
+    args.last
   )
   leap_args.opts.labels = {}
   if args.use_no_labels then
@@ -138,8 +174,19 @@ local function flit (args)
   if type(sk.prev_target) == 'string' then
     sk.prev_target = { sk.prev_target }
   end
-  table.insert(sk.next_target, ';')
-  table.insert(sk.prev_target, ',')
+
+	if args.last then
+		if initial_backward then
+			table.insert(sk.prev_target, ";")
+			table.insert(sk.next_target, ",")
+		else
+			table.insert(sk.next_target, ";")
+			table.insert(sk.prev_target, ",")
+		end
+  else
+		table.insert(sk.next_target, ";")
+		table.insert(sk.prev_target, ",")
+  end
 
   require('leap').leap(leap_args)
 end
@@ -242,14 +289,16 @@ local function setup (args)
   local labeled_modes =
     args.labeled_modes and args.labeled_modes:gsub('v', 'x') or 'x'
 
-  keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T' }
+  local keys = args.keys or args.keymaps or { f = 'f', F = 'F', t = 't', T = 'T', semicolon = ';', comma = ','}
 
-  local key_specific_leap_args = {
-    [keys.f] = {},
-    [keys.F] = { backward = true },
-    [keys.t] = { offset = -1, t = true },
-    [keys.T] = { backward = true, offset = 1, t = true }
-  }
+	local key_specific_flit_args = {
+		[keys.f] = { leap_args = {} },
+		[keys.F] = { leap_args = { backward = true } },
+		[keys.t] = { leap_args = { offset = -1, t = true } },
+		[keys.T] = { leap_args = { backward = true, offset = 1, t = true } },
+		[keys.semicolon] = { last = true },
+		[keys.comma] = { last = true, leap_args = { backward = true } },
+	}
 
   for _, mode in ipairs({'n', 'x', 'o'}) do
     for _, key in pairs(keys) do
@@ -257,9 +306,7 @@ local function setup (args)
       -- pass the outer one by reference here inside the loop).
       local flit_args = vim.deepcopy(flit_args)
       flit_args.use_no_labels = not labeled_modes:match(mode)
-      for k, v in pairs(key_specific_leap_args[key]) do
-        flit_args.leap_args[k] = v
-      end
+      flit_args = vim.tbl_deep_extend("force", flit_args, key_specific_flit_args[key])
 
       vim.keymap.set(mode, key, function () flit(flit_args) end)
     end
