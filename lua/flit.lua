@@ -126,21 +126,33 @@ end
 
 local function flit (args)
   local leap_args = args.leap_args
-  print(vim.inspect(args))
-  if args.last then
+  local initial_backward = leap_args.backward
+
+  if not args.last then
+    state.last.offset = leap_args.offset
+  else
     -- Without deep copy, deciding whether search should go backward will
     -- influence parent table of the keymaps
     leap_args = vim.deepcopy(leap_args)
-    -- Mimick how vim's default f/F repetition with ;/, works
+    if state.last.offset then
+      if leap_args.backward then
+        leap_args.offset = -state.last.offset
+      else
+        leap_args.offset = state.last.offset
+      end
+    end
+    -- Mimic how vim's default f/F repetition with ;/, works
+    --
     -- Cases:
-    -- want to go forward,  last search went forward  => go forward
-    -- want to go forward,  last search went backward => go backward
-    -- want to go backward, last search went forward  => go backward
-    -- want to go backward, last search went backward => go forward
+    -- want to go forward(;),  last search went forward  => go forward
+    -- want to go forward(;),  last search went backward => go backward
+    -- want to go backward(,), last search went forward  => go backward
+    -- want to go backward(,), last search went backward => go forward
     --
     -- XOR on booleans, see <https://gist.github.com/gilzoide/6d7c435e4585f8ba96592f89f2442845?permalink_comment_id=4795151#gistcomment-4795151>
     leap_args.backward = (not leap_args.backward) ~= (not state.last.backward)
   end
+
   leap_args.targets = get_targets_callback(
     leap_args.backward,
     args.use_no_labels,
@@ -162,9 +174,18 @@ local function flit (args)
   if type(sk.prev_target) == 'string' then
     sk.prev_target = { sk.prev_target }
   end
-  if not args.last then
-    table.insert(sk.next_target, ';')
-    table.insert(sk.prev_target, ',')
+
+	if args.last then
+		if initial_backward then
+			table.insert(sk.prev_target, ";")
+			table.insert(sk.next_target, ",")
+		else
+			table.insert(sk.next_target, ";")
+			table.insert(sk.prev_target, ",")
+		end
+  else
+		table.insert(sk.next_target, ";")
+		table.insert(sk.prev_target, ",")
   end
 
   require('leap').leap(leap_args)
