@@ -34,7 +34,7 @@ local function get_targets_callback (backward, use_no_labels, multiline)
   end
 
   local handle_repeat = function (ch)
-    local next_target = require('leap').opts.special_keys.next_target
+    local next_target = require('leap').opts.keys.next_target
     local repeat_key = type(next_target) == 'table' and next_target[1] or next_target
 
     if ch == api.nvim_replace_termcodes(repeat_key, true, true, true) then
@@ -135,17 +135,16 @@ local function flit (args)
   end
 
   -- Add `;`/`,` as next/prev keys.
-  leap_args.opts.special_keys =
-    vim.deepcopy(require('leap.opts').default.special_keys)
-  local sk = leap_args.opts.special_keys
-  if type(sk.next_target) == 'string' then
-    sk.next_target = { sk.next_target }
+  leap_args.opts.keys = vim.deepcopy(require('leap.opts').default.keys)
+  local keys = leap_args.opts.keys
+  if type(keys.next_target) == 'string' then
+    keys.next_target = { keys.next_target }
   end
-  if type(sk.prev_target) == 'string' then
-    sk.prev_target = { sk.prev_target }
+  if type(keys.prev_target) == 'string' then
+    keys.prev_target = { keys.prev_target }
   end
-  table.insert(sk.next_target, ';')
-  table.insert(sk.prev_target, ',')
+  table.insert(keys.next_target, ';')
+  table.insert(keys.prev_target, ',')
 
   require('leap').leap(leap_args)
 end
@@ -182,9 +181,9 @@ local function set_clever_repeat (f, F, t, T)
 
       -- Set next/prev keys.
       -- (Note: `flit()` already forced them into tables.)
-      local cc_sk = cc_opts.special_keys
-      table.insert(cc_sk.next_target, args.t and t or f)
-      table.insert(cc_sk.prev_target, args.t and T or F)
+      local cc_keys = cc_opts.keys
+      table.insert(cc_keys.next_target, args.t and t or f)
+      table.insert(cc_keys.prev_target, args.t and T or F)
     end
   })
 end
