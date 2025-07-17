@@ -61,7 +61,7 @@ local function get_targets_callback (backward, use_no_labels, multiline)
   local get_pattern = function (input)
     -- See `expand-to-equivalence-class` in `leap`.
     -- Gotcha! 'leap'.opts redirects to 'leap.opts'.default - we want .current_call!
-    local chars = require('leap.opts').eq_class_of[input]
+    local chars = require('leap.opts').eqv_class_of[input]
     if chars then
       chars = vim.tbl_map(
         function (ch)
