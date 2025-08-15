@@ -53,7 +53,7 @@ local function get_targets_callback (backward, use_no_labels, multiline)
   local get_input = function ()
     local ch = with_highlight_chores(function ()
       -- !! non-public Leap API
-      return require('leap.util')['get-input-by-keymap']({str = '>'})
+      return require('leap.util')['get-char-keymapped']({str = '>'})
     end)
     if ch then return handle_repeat(ch) end
   end
