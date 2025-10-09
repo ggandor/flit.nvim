@@ -1,3 +1,8 @@
+# Deprecation notice
+
+This plugin is not maintained by the author anymore. To get the same
+functionality from Leap, see `:help leap-ft`.
+
 # flit.nvim
 
 `f`/`F`/`t`/`T` motions on steroids, building on the
